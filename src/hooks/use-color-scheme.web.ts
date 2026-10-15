@@ -13,7 +13,7 @@ export function useColorScheme() {
     setTimeout(() => {
       setColorScheme(colorSchemeValue);
     }, 0);
-  }, []);
+  }, [colorSchemeValue]);
 
   return colorScheme;
 }

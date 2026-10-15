@@ -116,7 +116,7 @@ export default function AddModal({ visible, onClose, onSaved, onTaskSaved, onHab
                 }
             })
             .catch((err) => console.error('Failed to load categories:', err));
-    }, [visible]);
+    }, [visible, catId]);
 
     // Reset the form when the modal is closed.
     // Handle reset in handleClose to avoid setState in useEffect
