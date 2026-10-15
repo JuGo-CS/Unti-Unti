@@ -54,12 +54,12 @@ function DayCell({
     isToday: boolean;
     onPress: () => void;
 }) {
-    const scale = useRef(new Animated.Value(1)).current;
+    const scale = useRef(new Animated.Value(1));
 
     const handlePress = () => {
         Animated.sequence([
-            Animated.timing(scale, { toValue: 0.85, duration: 90, useNativeDriver: true }),
-            Animated.spring(scale, { toValue: 1, friction: 4, useNativeDriver: true }),
+            Animated.timing(scale.current, { toValue: 0.85, duration: 90, useNativeDriver: true }),
+            Animated.spring(scale.current, { toValue: 1, friction: 4, useNativeDriver: true }),
         ]).start();
         onPress();
     };
