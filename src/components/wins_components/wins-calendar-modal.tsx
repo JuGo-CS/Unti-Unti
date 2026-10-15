@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, Animated } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { triggerHaptic } from '@/utils/haptics';
@@ -54,7 +54,7 @@ function DayCell({
     isToday: boolean;
     onPress: () => void;
 }) {
-    const scale = useRef(new Animated.Value(1)).current;
+    const [scale] = useState(() => new Animated.Value(1));
 
     const handlePress = () => {
         Animated.sequence([

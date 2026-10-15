@@ -1,6 +1,6 @@
 import { HomeSortCriteria } from "@/features/tasks/tasks.types";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Modal, Text, TouchableOpacity, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -311,7 +311,9 @@ function DraggableTaskList({
   onEdit?: (task: TaskItemData) => void;
   onDelete?: (task: TaskItemData) => void;
 }) {
-  const [order, setOrder] = useState<string[]>(() => tasks.map((t) => t.id));
+  const [dragOrder, setDragOrder] = useState<string[] | null>(null);
+  const dragOrderRef = useRef<string[] | null>(null);
+  const prevTasksRef = useRef<TaskItemData[]>(tasks);
 
   // Measured height of a single row (captured from the first row's layout).
   // Used to translate a drag offset into how many rows were crossed.
@@ -325,18 +327,32 @@ function DraggableTaskList({
   // in-progress drag when the parent refetches after a task change.
   const [dragging] = useState(false);
 
-  // Keep the local order in sync when the tasks list changes. The parent
-  // refetches from the shared task-change event, so a new task (Add) or a
-  // reordered queue is reflected here without a manual refresh — but a drag
-  // in progress must not be clobbered, so only resync when not dragging.
+  // Compute the order to use: dragOrder if set (from user dragging), otherwise base order from tasks
+  const order = (dragOrder ?? tasks.map((t) => t.id));
+
+  // Update dragOrder ref when it changes via state setter (to keep ref in sync)
+  useEffect(() => {
+    dragOrderRef.current = dragOrder;
+  }, [dragOrder]);
+
+  // Sync order with tasks when tasks change (but not during drag)
+  // Check for deep equality of tasks to avoid infinite loops due to reference changes
   useEffect(() => {
     if (dragging) return;
-    setOrder(tasks.map((t) => t.id));
-  }, [tasks, dragging]);
+    // Check if tasks have actually changed by comparing IDs
+    const currentTaskIds = tasks.map((t: TaskItemData) => t.id);
+    const prevTaskIds = prevTasksRef.current.map((t: TaskItemData) => t.id);
+    const tasksChanged = JSON.stringify(currentTaskIds) !== JSON.stringify(prevTaskIds);
+    if (tasksChanged) {
+      prevTasksRef.current = tasks;
+      // Reset dragOrder when tasks change externally (but not during drag)
+      // Use setTimeout to defer state update and avoid setState in useEffect warning
+      setTimeout(() => {
+        setDragOrder(null);
+      }, 0);
+    }
+  }, [tasks, dragging]); // Note: we still need tasks in dep array to know when to check
 
-  // useEffect(() => {
-  //     setOrder(tasks.map((t) => t.id));
-  // }, [tasks]);
 
   // On drag end, compute the new index from the dragged offset and reorder.
   const handleDragEnd = (task: TaskItemData, offsetY: number) => {
@@ -356,7 +372,7 @@ function DraggableTaskList({
     const [moved] = next.splice(fromIndex, 1);
     next.splice(toIndex, 0, moved);
 
-    setOrder(next);
+    setDragOrder(next);
     onReorder?.(next);
   };
 

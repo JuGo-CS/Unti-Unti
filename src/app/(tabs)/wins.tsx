@@ -261,7 +261,7 @@ export default function WinsScreen() {
                 setSaving(false);
                 triggerHaptic.success(); // Successful update
             });
-    }, [editingLog, setSaving, setEditModalVisible, setEditingLog, setToast, restoreTaskSnapshot, fetchTreasureGroups, emitTaskDataChanged]);
+    }, [editingLog, setSaving, setEditModalVisible, setToast]);
 
     // Handle tapping Delete — open the confirmation dialog (does not delete yet).
     const handleDeleteLog = useCallback((log: TreasureLog) => {
@@ -302,7 +302,7 @@ export default function WinsScreen() {
                                 console.error('Failed to undo treasure deletion:', err);
                                 setToast({ message: 'Could not undo. Please try again.' });
                             });
-                    },
+                    }
                 });
             })
             .catch((err) => {
@@ -312,7 +312,7 @@ export default function WinsScreen() {
             .finally(() => {
                 setDeleting(false);
             });
-    }, [deletingLog, setDeleting, setDeleteModalVisible, setDeletingLog, setToast, restoreTreasure, fetchTreasureGroups, emitTaskDataChanged]);
+    }, [setDeleting, setDeleteModalVisible, setToast]);
 
     // Jump the logbook to the selected date. Does NOT filter — the whole
     // logbook stays scrollable so the user can continue browsing nearby days.

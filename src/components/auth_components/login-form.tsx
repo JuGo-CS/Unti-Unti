@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,20 +28,16 @@ const LoginForm: React.FC = () => {
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
   const router = useRouter();
   const params = useLocalSearchParams<{ success?: string }>();
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  useEffect(() => {
-    if (params.success === "reset") {
-      setSuccessMessage(
-        "Password reset successfully! Please sign in with your new password.",
-      );
-    }
-  }, [params.success]);
+  // Derive success message from params instead of using useEffect
+  const successMessage =
+    params.success === "reset"
+      ? "Password reset successfully! Please sign in with your new password."
+      : null;
 
   const handleSubmit = async () => {
     setError(null);

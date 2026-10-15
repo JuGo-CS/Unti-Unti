@@ -263,7 +263,7 @@ export default function HomeScreen() {
                     setToast({ message: 'Could not undo. Please try again.' });
                 }
             });
-    }, [syncPositions, emitTaskDataChanged]);
+    }, [syncPositions, sortCriteria]);
 
     // Undo a task deletion: restore the deleted task and refresh the UI.
     const undoTaskDeletion = useCallback((task: HomeTask) => {
@@ -281,7 +281,7 @@ export default function HomeScreen() {
                 console.error('Failed to undo task deletion:', err);
                 setToast({ message: 'Could not undo. Please try again.' });
             });
-    }, [syncPositions, emitTaskDataChanged]);
+    }, [syncPositions, sortCriteria]);
 
     // Undo a habit completion: remove today's log so the habit reappears.
     // If showToast is false, no toast is shown (used for internal rollback).
@@ -332,7 +332,7 @@ export default function HomeScreen() {
                 undoTaskCompletion(task, wasHero, false); // Internal rollback: no toast from undo function.
                 setToast({ message: 'Failed to complete task. Please try again.', undoLabel: undefined });
             });
-    }, [taskQueue, sortCriteria, syncPositions, undoTaskCompletion, completeTask, emitTaskDataChanged]);
+    }, [taskQueue, sortCriteria, syncPositions, undoTaskCompletion]);
 
     const handleToggleTask = useCallback((task: TaskItemData) => {
         triggerHaptic.heavy(); // Task completion toggle
@@ -365,7 +365,7 @@ export default function HomeScreen() {
                 undoTaskCompletion(task, wasHero, false);
                 setToast({ message: 'Failed to toggle task. Please try again.', undoLabel: undefined });
             });
-    }, [taskQueue, sortCriteria, syncPositions, undoTaskCompletion, completeTask, emitTaskDataChanged]);
+    }, [taskQueue, sortCriteria, syncPositions, undoTaskCompletion]);
 
     // Toggle edit mode for the Other tasks section.
     const handleToggleEdit = useCallback(() => {
@@ -385,7 +385,7 @@ export default function HomeScreen() {
             .catch((err) => {
                 console.error('Failed to persist sort order:', err);
             });
-    }, [setHomeSortCriteria, syncPositions, emitTaskDataChanged]);
+    }, [taskQueue, syncPositions]);
 
     // Make the given task the Hero Task. Persists `is_focus` to Supabase.
     const handleMakeHero = useCallback((task: TaskItemData) => {
@@ -406,7 +406,7 @@ export default function HomeScreen() {
             .catch((err) => {
                 console.error('Failed to set hero task:', err);
             });
-    }, [setHeroTask, fetchPendingTaskQueue, setTaskQueue, syncPositions, emitTaskDataChanged]);
+    }, [setTaskQueue, syncPositions]);
 
     // Persist a manual drag reorder of the non-Hero tasks.
     const handleReorder = useCallback((orderedOtherIds: string[]) => {
@@ -430,7 +430,7 @@ export default function HomeScreen() {
             .catch((err) => {
                 console.error('Failed to persist reorder:', err);
             });
-    }, [taskQueue, setSortCriteria, setTaskQueue, syncPositions, emitTaskDataChanged]);
+    }, [taskQueue, setSortCriteria, setTaskQueue, syncPositions]);
 
     // Open the edit modal for a task (edit mode → tap body → Edit).
     const handleEditTask = useCallback((task: TaskItemData) => {
@@ -456,7 +456,7 @@ export default function HomeScreen() {
                 console.error('Failed to undo task edit:', err);
                 setToast({ message: 'Could not undo. Please try again.' });
             });
-    }, [syncPositions, emitTaskDataChanged]);
+    }, [syncPositions, sortCriteria]);
 
     // Confirm the edited task, then refresh the queue.
     const handleConfirmEdit = useCallback((payload: {
@@ -493,7 +493,7 @@ export default function HomeScreen() {
             .finally(() => {
                 setSaving(false);
             });
-    }, [refreshTasks, emitTaskDataChanged]);
+    }, [editingTask, refreshTasks, undoTaskEdit]);
 
     // Open the delete confirmation for a task (edit mode → tap body → Delete).
     const handleDeleteTask = useCallback((task: TaskItemData) => {
@@ -525,7 +525,7 @@ export default function HomeScreen() {
             .finally(() => {
                 setDeleting(false);
             });
-    }, [refreshTasks, emitTaskDataChanged]);
+    }, [refreshTasks, undoTaskDeletion]);
 
     // Pull-to-refresh: refetch tasks + habits, guarding against duplicate runs.
     const handleRefresh = useCallback(() => {
@@ -568,7 +568,7 @@ export default function HomeScreen() {
                 undoHabit(habit, false);
                 setToast({ message: 'Failed to complete habit. Please try again.', undoLabel: undefined });
             });
-    }, [setHabits, setToast, undoHabit, logHabitCompletion, emitTaskDataChanged]);
+    }, [setHabits, setToast, undoHabit]);
 
     const [userName, setUserName] = useState<string>('');
     const [loading, setLoading] = useState(true);

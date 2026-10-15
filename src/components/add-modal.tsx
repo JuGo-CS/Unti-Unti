@@ -116,28 +116,24 @@ export default function AddModal({ visible, onClose, onSaved, onTaskSaved, onHab
                 }
             })
             .catch((err) => console.error('Failed to load categories:', err));
-    }, [visible]);
+    }, [visible, catId]);
 
-    // Reset the form when the modal is closed/reopened.
-    useEffect(() => {
-        if (!visible) {
-            setStep('choose');
-            setTitle('');
-            setDescription('');
-            setCatId(null);
-            setDeadline('');
-            setPriority('medium');
-            setHabitTitle('');
-            setHabitCatId(null);
-            setError(null);
-            setTitleError(null);
-            setDescriptionError(null);
-            setDeadlineError(null);
-        }
-    }, [visible]);
-
+    // Reset the form when the modal is closed.
+    // Handle reset in handleClose to avoid setState in useEffect
     const handleClose = () => {
         Keyboard.dismiss();
+        setStep('choose');
+        setTitle('');
+        setDescription('');
+        setCatId(null);
+        setDeadline('');
+        setPriority('medium');
+        setHabitTitle('');
+        setHabitCatId(null);
+        setError(null);
+        setTitleError(null);
+        setDescriptionError(null);
+        setDeadlineError(null);
         onClose();
     };
 

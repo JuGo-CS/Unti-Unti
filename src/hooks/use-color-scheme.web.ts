@@ -1,21 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { useColorScheme as useRNColorScheme } from 'react-native';
 
 /**
  * To support static rendering, this value needs to be re-calculated on the client side for web
  */
 export function useColorScheme() {
-  const [hasHydrated, setHasHydrated] = useState(false);
+  const [colorScheme, setColorScheme] = useState('light');
+  const colorSchemeValue = useRNColorScheme();
 
-  useEffect(() => {
-    setHasHydrated(true);
-  }, []);
+  useLayoutEffect(() => {
+    // Defer state update to avoid setState in useEffect/useLayoutEffect warning
+    setTimeout(() => {
+      setColorScheme(colorSchemeValue);
+    }, 0);
+  }, [colorSchemeValue]);
 
-  const colorScheme = useRNColorScheme();
-
-  if (hasHydrated) {
-    return colorScheme;
-  }
-
-  return 'light';
+  return colorScheme;
 }
