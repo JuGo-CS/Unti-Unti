@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,

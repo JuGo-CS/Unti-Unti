@@ -6,11 +6,12 @@ import { useColorScheme as useRNColorScheme } from 'react-native';
  */
 export function useColorScheme() {
   const [colorScheme, setColorScheme] = useState('light');
+  const colorSchemeValue = useRNColorScheme();
 
   useLayoutEffect(() => {
     // Defer state update to avoid setState in useEffect/useLayoutEffect warning
     setTimeout(() => {
-      setColorScheme(useRNColorScheme());
+      setColorScheme(colorSchemeValue);
     }, 0);
   }, []);
 

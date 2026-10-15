@@ -328,7 +328,7 @@ function DraggableTaskList({
   const [dragging] = useState(false);
 
   // Compute the order to use: dragOrder if set (from user dragging), otherwise base order from tasks
-  const order = (dragOrderRef.current ?? tasks.map((t) => t.id));
+  const order = (dragOrder ?? tasks.map((t) => t.id));
 
   // Update dragOrder ref when it changes via state setter (to keep ref in sync)
   useEffect(() => {
