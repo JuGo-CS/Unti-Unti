@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-export interface HeroTask {
+interface HeroTask {
     id: string;
     title: string;
     iconName: keyof typeof Ionicons.glyphMap;
