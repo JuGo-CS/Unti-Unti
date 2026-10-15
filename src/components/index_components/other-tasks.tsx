@@ -1,6 +1,6 @@
 import { HomeSortCriteria } from "@/features/tasks/tasks.types";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Modal, Text, TouchableOpacity, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -340,8 +340,8 @@ function DraggableTaskList({
   useEffect(() => {
     if (dragging) return;
     // Check if tasks have actually changed by comparing IDs
-    const currentTaskIds = tasks.map(t => t.id);
-    const prevTaskIds = prevTasksRef.current.map(t => t.id);
+    const currentTaskIds = tasks.map((t: TaskItemData) => t.id);
+    const prevTaskIds = prevTasksRef.current.map((t: TaskItemData) => t.id);
     const tasksChanged = JSON.stringify(currentTaskIds) !== JSON.stringify(prevTaskIds);
     if (tasksChanged) {
       prevTasksRef.current = tasks;

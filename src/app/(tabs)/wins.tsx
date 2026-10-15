@@ -302,7 +302,7 @@ export default function WinsScreen() {
                                 console.error('Failed to undo treasure deletion:', err);
                                 setToast({ message: 'Could not undo. Please try again.' });
                             });
-                    },
+                    }
                 });
             })
             .catch((err) => {
