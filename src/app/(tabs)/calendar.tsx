@@ -195,7 +195,7 @@ export default function CalendarScreen() {
                     setToast({ message: 'Could not undo. Please try again.' });
                 }
             });
-    }, [refreshTasks, emitTaskDataChanged]);
+    }, [refreshTasks]);
 
     // Mark a task as completed (goes to Treasures via the existing logic).
     const handleCompleteTask = useCallback((task: HomeTask) => {
@@ -224,7 +224,7 @@ export default function CalendarScreen() {
                 undoTaskCompletion(task, wasHero, false); // Internal rollback: no toast from undo function.
                 setToast({ message: 'Failed to complete task. Please try again.', undoLabel: undefined });
             });
-    }, []);
+    }, [undoTaskCompletion]);
 
     // Open the edit modal for a task.
     const handleEditTask = useCallback((task: HomeTask) => {
@@ -274,7 +274,7 @@ export default function CalendarScreen() {
                 setSaving(false);
                 triggerHaptic.success(); // Successful update
             });
-    }, [refreshTasks, emitTaskDataChanged]);
+    }, [editingTask, refreshTasks]);
 
     // Open the delete confirmation for a task.
     const handleDeleteTask = useCallback((task: HomeTask) => {
@@ -315,7 +315,7 @@ export default function CalendarScreen() {
             .finally(() => {
                 setDeleting(false);
             });
-    }, [refreshTasks, emitTaskDataChanged]);
+    }, [refreshTasks]);
 
     // Pull-to-refresh: refetch the global queue, guarding against duplicate runs.
     const handleRefresh = useCallback(() => {
