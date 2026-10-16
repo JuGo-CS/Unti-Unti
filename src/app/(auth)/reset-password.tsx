@@ -41,13 +41,13 @@ const ResetPasswordScreen: React.FC = () => {
       return;
     }
 
-    if (!/^\d{6}$/.test(trimmedOtp)) {
-      setError("Please enter the 6-digit code from your email.");
+    if (!/^\d{8}$/.test(trimmedOtp)) {
+      setError("Please enter the 8-digit code from your email.");
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError("Password must be at least 6 characters long.");
+    if (newPassword.length < 8) {
+      setError("Password must be at least 8 characters long.");
       return;
     }
 
@@ -125,7 +125,7 @@ const ResetPasswordScreen: React.FC = () => {
                 value={otpCode}
                 onChangeText={setOtpCode}
                 keyboardType="number-pad"
-                maxLength={6}
+                maxLength={8}
                 autoCapitalize="none"
                 autoCorrect={false}
                 className="font-fredoka text-base text-deepBrown p-0 tracking-widest"
