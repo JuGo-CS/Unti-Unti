@@ -46,8 +46,8 @@ const ResetPasswordScreen: React.FC = () => {
       return;
     }
 
-    if (newPassword.length < 8) {
-      setError("Password must be at least 8 characters long.");
+    if (newPassword.length < 6) {
+      setError("Password must be at least 6 characters long.");
       return;
     }
 
@@ -110,14 +110,14 @@ const ResetPasswordScreen: React.FC = () => {
               Reset Password
             </Text>
             <Text className="font-fredoka text-base text-mutedBrown mt-1.5 leading-6">
-              Enter the 6-digit code sent to your email and your new password
+              Enter the 8-digit code sent to your email and your new password
             </Text>
           </View>
 
           {/* OTP Code Field */}
           <View className="mb-5">
             <Text className="font-fredoka-medium text-xs text-deepBrown uppercase tracking-wider mb-2 ml-1">
-              6-Digit OTP Token
+              8-Digit OTP Token
             </Text>
             <View className="bg-white border border-deepBrown/15 rounded-2xl px-4 py-3.5 shadow-sm">
               <TextInput
