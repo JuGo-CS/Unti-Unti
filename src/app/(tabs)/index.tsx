@@ -658,7 +658,7 @@ export default function HomeScreen() {
                             activeOpacity={0.7}
                             className="mt-4 bg-focusHero text-white px-6 py-3 rounded-xl font-fredoka-semibold"
                         >
-                            Retry
+                            <Text className="font-fredoka-semibold">Retry</Text>
                         </TouchableOpacity>
                     </View>
                 ) : (
@@ -722,13 +722,15 @@ export default function HomeScreen() {
                         <Text className="text-base font-fredoka text-deepBrown">
                             Failed to load habits. Please try again.
                         </Text>
-                        <TouchableOpacity
-                            onPress={handleRefresh}
-                            activeOpacity={0.7}
-                            className="bg-focusHero text-white px-6 py-3 rounded-xl font-fredoka-semibold"
-                        >
-                            Retry
-                        </TouchableOpacity>
+                        <View className="mt-3">
+                            <TouchableOpacity
+                                onPress={handleRefresh}
+                                activeOpacity={0.7}
+                                className="bg-focusHero text-white px-6 py-3 rounded-xl font-fredoka-semibold"
+                            >
+                                <Text className="font-fredoka-semibold">Retry</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 )}
             </ScrollView>

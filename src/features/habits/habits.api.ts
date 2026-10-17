@@ -56,13 +56,32 @@ export async function fetchTodayHabits(): Promise<HabitData[]> {
         supabase.from('habit_logs').select('habit_id').eq('completed_date', today),
     ]);
 
+    // Handle "JWT issued at future" error (clock skew) by refreshing the session
+    const handleAuthError = async (error: unknown, context: string) => {
+        const err = error as { message?: string; code?: string };
+        if (err?.message?.includes('JWT issued at future') || err?.code === 'JWT_ISSUED_AT_FUTURE') {
+            console.warn(`${context}: JWT clock skew detected, refreshing session...`);
+            const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+            if (refreshError) {
+                console.error(`${context}: Failed to refresh session:`, refreshError.message);
+                throw refreshError;
+            }
+            if (session) {
+                console.log(`${context}: Session refreshed successfully, retrying...`);
+                // Retry the original operation after refresh
+                return fetchTodayHabits();
+            }
+        }
+        throw error;
+    };
+
     if (habitsResult.error) {
         console.error('Failed to fetch habits:', habitsResult.error.message);
-        throw habitsResult.error;
+        return handleAuthError(habitsResult.error, 'fetchTodayHabits/habits');
     }
     if (logsResult.error) {
         console.error('Failed to fetch habit logs:', logsResult.error.message);
-        throw logsResult.error;
+        return handleAuthError(logsResult.error, 'fetchTodayHabits/logs');
     }
 
     const habitRows = (habitsResult.data ?? []) as unknown as HabitRow[];
