@@ -12,6 +12,7 @@ interface HabitRow {
     date_created: string;
     time_created: string;
     created_at: string;
+    user_id: string;
     categories?: { emoji_holder: string | null } | null;
 }
 
@@ -136,11 +137,19 @@ export interface CreateHabitInput {
 }
 
 export async function createHabit(input: CreateHabitInput): Promise<void> {
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+        console.error('Failed to get current user:', userError?.message);
+        throw new Error('User not authenticated');
+    }
+
     const { error } = await supabase.from('habits').insert({
         title: input.title,
         cat_id: input.cat_id,
         date_created: todayDateString(),
         time_created: nowTimeString(),
+        user_id: user.id,
     });
 
     if (error) {

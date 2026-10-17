@@ -22,6 +22,9 @@ interface TaskRow {
     // Manual ordering column. Optional because it may not exist yet in the
     // database; when absent the queue falls back to `created_at`.
     position: number | null;
+    // UBAC fields
+    user_id: string;
+    list_id: string | null;
     // Joined from `categories` via cat_id
     categories?: { emoji_holder: string | null; cat_name: string | null } | null;
 }
@@ -103,6 +106,8 @@ function toHomeTask(row: TaskRow): HomeTask {
         completed: row.status === 'completed',
         description: row.description,
         catId: row.cat_id,
+        userId: row.user_id,
+        listId: row.list_id,
         priority: normalizePriority(row.priority),
         deadline: normalizeDate(row.deadline),
         deadlineTime: extractTime(row.deadline),
@@ -176,6 +181,7 @@ export async function fetchPendingTaskQueue(): Promise<TaskItemData[]> {
  * but is filtered out of the active queue by `fetchPendingTaskQueue`.
  */
 export async function completeTask(taskId: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
     const today = todayDateString();
     const time = nowTimeString();
 
@@ -213,6 +219,7 @@ export async function completeTask(taskId: string): Promise<void> {
             is_focus: false,
             completed_date: today,
             completed_time: time,
+            completed_by: user!.id,
         })
         .eq('task_id', taskId);
 
@@ -439,6 +446,13 @@ export async function undoCompleteTask(taskId: string, wasHero: boolean): Promis
  * and position. Used to undo a task deletion.
  */
 export async function restoreTask(task: HomeTask): Promise<void> {
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+        console.error('Failed to get current user:', userError?.message);
+        throw new Error('User not authenticated');
+    }
+
     const { error } = await supabase.from('tasks').insert({
         task_id: task.id,
         cat_id: task.catId,
@@ -450,6 +464,8 @@ export async function restoreTask(task: HomeTask): Promise<void> {
         deadline: task.deadline,
         created_at: task.createdAt,
         position: task.position,
+        user_id: task.userId ?? user.id,
+        list_id: task.listId ?? null,
     });
 
     if (error) {
@@ -472,6 +488,8 @@ export function homeTaskToSnapshot(task: HomeTask): TaskSnapshot {
         title: task.title,
         description: task.description,
         catId: task.catId,
+        userId: task.userId,
+        listId: task.listId,
         priority: task.priority,
         deadline: task.deadline,
         status: task.completed ? 'completed' : 'pending',
@@ -516,15 +534,24 @@ export interface CreateTaskInput {
     cat_id: string | null;
     deadline: string | null;
     priority: string;
+    list_id?: string | null;
 }
 
 export async function createTask(input: CreateTaskInput): Promise<void> {
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+        console.error('Failed to get current user:', userError?.message);
+        throw new Error('User not authenticated');
+    }
+
     // Determine the next queue position so the new task is appended without
     // creating a gap or conflicting with existing positions.
     const { data: posRows, error: posError } = await supabase
         .from('tasks')
         .select('position')
         .eq('status', 'pending')
+        .eq('user_id', user.id)
         .not('position', 'is', null);
 
     if (posError) {
@@ -538,6 +565,9 @@ export async function createTask(input: CreateTaskInput): Promise<void> {
     );
     const nextPosition = (posRows ?? []).length > 0 ? maxPosition + 1 : 0;
 
+    // Use provided list_id or default to user's personal list
+    const listId = input.list_id ?? null;
+
     const { error } = await supabase.from('tasks').insert({
         title: input.title,
         description: input.description,
@@ -547,6 +577,8 @@ export async function createTask(input: CreateTaskInput): Promise<void> {
         deadline: input.deadline,
         priority: input.priority,
         position: nextPosition,
+        user_id: user.id,
+        list_id: listId,
     });
 
     if (error) {

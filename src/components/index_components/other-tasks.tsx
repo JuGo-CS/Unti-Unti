@@ -189,14 +189,14 @@ export default function OtherTasks({
   // Empty state — no other tasks remaining.
   if (tasks.length === 0) {
     return (
-      <View className="mt-2">
+      <View className="mt-6">
         <View className="bg-cardBg rounded-2xl px-5 py-6 items-center justify-center">
           <Ionicons
             name="checkmark-done-circle-outline"
             size={40}
             color="#7D6E6B"
           />
-          <Text className="text-base font-fredoka-medium text-mutedBrown text-center mt-3">
+          <Text className="text-base font-fredoka-medium text-mutedBrown text-center">
             Nothing else on your plate. Time to relax ~
           </Text>
         </View>

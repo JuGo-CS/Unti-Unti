@@ -23,93 +23,6 @@ import { restoreTaskSnapshot } from '@/features/tasks/tasks.api';
 import { triggerHaptic } from '@/utils/haptics';
 
 
-// Placeholder treasure groups used when the database fetch hasn't loaded yet.
-// Replace with real data once the backend is fully wired.
-const PLACEHOLDER_GROUPS: TreasureGroup[] = [
-    {
-        date: '2026-09-09',
-        label: 'September 9, 2026',
-        logs: [
-            {
-                id: 't-1',
-                title: 'Finish wireframes for Unti-Unti',
-                description: null,
-                catId: null,
-                iconName: 'school',
-                completedDate: '2026-09-09',
-                completedTime: '14:30:00',
-                status: 'completed',
-                deadline: null,
-                priority: 'medium',
-                position: 0,
-                createdAt: '2026-09-01T00:00:00.000Z',
-            },
-            {
-                id: 't-2',
-                title: 'Finish wireframes for Unti-Unti',
-                description: null,
-                catId: null,
-                iconName: 'school',
-                completedDate: '2026-09-09',
-                completedTime: '14:30:00',
-                status: 'completed',
-                deadline: null,
-                priority: 'medium',
-                position: 1,
-                createdAt: '2026-09-01T00:00:00.000Z',
-            },
-            {
-                id: 't-3',
-                title: 'Finish wireframes for Unti-Unti',
-                description: null,
-                catId: null,
-                iconName: 'school',
-                completedDate: '2026-09-09',
-                completedTime: '14:30:00',
-                status: 'completed',
-                deadline: null,
-                priority: 'medium',
-                position: 2,
-                createdAt: '2026-09-01T00:00:00.000Z',
-            },
-        ],
-    },
-    {
-        date: '2026-09-08',
-        label: 'September 8, 2026',
-        logs: [
-            {
-                id: 't-4',
-                title: 'Finish wireframes for Unti-Unti',
-                description: null,
-                catId: null,
-                iconName: 'school',
-                completedDate: '2026-09-08',
-                completedTime: '14:30:00',
-                status: 'completed',
-                deadline: null,
-                priority: 'medium',
-                position: 0,
-                createdAt: '2026-09-01T00:00:00.000Z',
-            },
-            {
-                id: 't-5',
-                title: 'Finish wireframes for Unti-Unti',
-                description: null,
-                catId: null,
-                iconName: 'school',
-                completedDate: '2026-09-08',
-                completedTime: '14:30:00',
-                status: 'completed',
-                deadline: null,
-                priority: 'medium',
-                position: 1,
-                createdAt: '2026-09-01T00:00:00.000Z',
-            },
-        ],
-    },
-];
-
 /** Today's date as `YYYY-MM-DD` in local time. */
 function todayDateString(): string {
     const now = new Date();
@@ -128,7 +41,7 @@ export default function WinsScreen() {
     });
 
     const [activeTab, setActiveTab] = useState<WinsTab>('treasures');
-    const [groups, setGroups] = useState<TreasureGroup[]>(PLACEHOLDER_GROUPS);
+    const [groups, setGroups] = useState<TreasureGroup[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [calendarVisible, setCalendarVisible] = useState(false);

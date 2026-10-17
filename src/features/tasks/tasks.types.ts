@@ -15,6 +15,10 @@ export interface HomeTask {
   description: string | null;
   /** The category id, or null. */
   catId: string | null;
+  /** The user ID who owns this task. */
+  userId?: string;
+  /** The list ID this task belongs to (for collaborative lists). */
+  listId?: string | null;
   /** Priority from `tasks.priority`: 'high' | 'medium' | 'low'. */
   priority: 'high' | 'medium' | 'low';
   /** Deadline date as `YYYY-MM-DD`, or null if the task has no deadline. */
@@ -48,6 +52,8 @@ export interface TaskSnapshot {
   title: string;
   description: string | null;
   catId: string | null;
+  userId?: string;
+  listId?: string | null;
   priority: string | null;
   deadline: string | null;
   status: string;

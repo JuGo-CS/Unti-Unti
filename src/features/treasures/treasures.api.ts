@@ -34,6 +34,9 @@ interface CompletedTaskRow {
     completed_date: string | null;
     completed_time: string | null;
     created_at: string;
+    // UBAC fields
+    user_id: string;
+    list_id: string | null;
     // Joined from `categories` via cat_id
     categories?: { emoji_holder: string | null } | null;
 }
@@ -86,6 +89,8 @@ function toTreasureLog(row: CompletedTaskRow): TreasureLog {
         title: row.title,
         description: row.description,
         catId: row.cat_id,
+        userId: row.user_id,
+        listId: row.list_id,
         iconName: iconForEmoji(row.categories?.emoji_holder),
         status: row.status === 'pending' ? 'pending' : 'completed',
         deadline: row.deadline ? row.deadline.slice(0, 10) : null,
@@ -181,6 +186,13 @@ export async function deleteTreasure(taskId: string): Promise<void> {
  * completion data. Used to undo a deletion from the Wins tab.
  */
 export async function restoreTreasure(log: TreasureLog): Promise<void> {
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+        console.error('Failed to get current user:', userError?.message);
+        throw new Error('User not authenticated');
+    }
+
     const { error } = await supabase.from('tasks').insert({
         task_id: log.id,
         cat_id: log.catId,
@@ -194,6 +206,8 @@ export async function restoreTreasure(log: TreasureLog): Promise<void> {
         created_at: log.createdAt,
         completed_date: log.completedDate || null,
         completed_time: log.completedTime || null,
+        user_id: log.userId ?? user.id,
+        list_id: log.listId ?? null,
     });
 
     if (error) {
@@ -207,9 +221,17 @@ export async function restoreTreasure(log: TreasureLog): Promise<void> {
  * The user can pick a new category when editing a completed task.
  */
 export async function fetchCategories(): Promise<Category[]> {
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+        console.error('Failed to get current user:', userError?.message);
+        throw new Error('User not authenticated');
+    }
+
     const { data, error } = await supabase
         .from('categories')
         .select('cat_id, cat_name, emoji_holder')
+        .eq('user_id', user.id)
         .order('cat_name', { ascending: true });
 
     if (error) {
@@ -245,6 +267,13 @@ export async function updateTreasure(
     };
 
     if (payload.status === 'pending') {
+        // Get the current user for position query
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+            console.error('Failed to get current user:', userError?.message);
+            throw new Error('User not authenticated');
+        }
+
         // Revert to pending: clear completion metadata and unset focus so the
         // task rejoins the queue as a non-focus pending task. Assign the next
         // position so it appends cleanly without a gap or conflict.
@@ -252,6 +281,7 @@ export async function updateTreasure(
             .from('tasks')
             .select('position')
             .eq('status', 'pending')
+            .eq('user_id', user.id)
             .not('position', 'is', null);
 
         if (posError) {
