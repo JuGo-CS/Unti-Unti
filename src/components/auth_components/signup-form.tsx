@@ -163,7 +163,7 @@ const SignupForm: React.FC = () => {
             </Text>
             <View className="bg-white border border-deepBrown/15 rounded-2xl px-4 py-3.5 shadow-sm flex-row items-center justify-between">
               <TextInput
-                placeholder="••••••••"
+                placeholder="(min. 6 characters)"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
