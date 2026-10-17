@@ -231,7 +231,6 @@ export async function fetchCategories(): Promise<Category[]> {
     const { data, error } = await supabase
         .from('categories')
         .select('cat_id, cat_name, emoji_holder')
-        .eq('user_id', user.id)
         .order('cat_name', { ascending: true });
 
     if (error) {
