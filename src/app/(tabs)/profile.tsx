@@ -192,60 +192,69 @@ export default function ProfileScreen() {
 
                 {/* Section 2: Password */}
                 <View className="bg-bgCardBg border border-mutedBrown/20 rounded-2xl p-4 mb-6">
-                    <Text className="text-lg font-fredoka-semibold text-deepBrown mb-3">
+                    <Text className="text-lg font-fredoka-semibold text-deepBrown mb-4">
                         Change Password
                     </Text>
 
-                    <TextInput
-                        className="border border-mutedBrown/30 rounded-xl px-3 py-2.5 mb-2.5 bg-cozyBg font-fredoka text-deepBrown"
-                        placeholder="New Password (min. 6 characters)"
-                        placeholderTextColor="#7D6E6B"
-                        value={newPassword}
-                        onChangeText={setNewPassword}
-                        secureTextEntry={!showNewPassword}
-                    />
-
-                    <Pressable
-                        onPress={() => setShowNewPassword(!showNewPassword)}
-                        hitSlop={10}
-                        className="text-right mb-2"
-                    >
-                        <Text className="font-fredoka-semibold text-xs text-focusHero">
+                    {/* New Password Input */}
+                    <View className="mb-4">
+                        <Text className="font-fredoka-medium text-xs text-deepBrown uppercase tracking-wider mb-2 ml-1">
+                        New Password
+                        </Text>
+                        <View className="bg-cozyBg border border-mutedBrown/30 rounded-2xl px-4 py-3 flex-row items-center justify-between">
+                        <TextInput
+                            placeholder="New Password (min. 6 characters)"
+                            placeholderTextColor="#7D6E6B"
+                            value={newPassword}
+                            onChangeText={setNewPassword}
+                            secureTextEntry={!showNewPassword}
+                            autoCapitalize="none"
+                            className="font-fredoka text-base text-deepBrown flex-1 p-0"
+                        />
+                        <Pressable onPress={() => setShowNewPassword(!showNewPassword)} hitSlop={10}>
+                            <Text className="font-fredoka-semibold text-xs text-focusHero ml-2">
                             {showNewPassword ? "Hide" : "Show"}
+                            </Text>
+                        </Pressable>
+                        </View>
+                    </View>
+
+                    {/* Confirm New Password Input */}
+                    <View className="mb-5">
+                        <Text className="font-fredoka-medium text-xs text-deepBrown uppercase tracking-wider mb-2 ml-1">
+                        Confirm Password
                         </Text>
-                    </Pressable>
-
-                    <TextInput
-                        className="border border-mutedBrown/30 rounded-xl px-3 py-2.5 mb-3 bg-cozyBg font-fredoka text-deepBrown"
-                        placeholder="Confirm New Password"
-                        placeholderTextColor="#7D6E6B"
-                        value={confirmPassword}
-                        onChangeText={setConfirmPassword}
-                        secureTextEntry={!showConfirmPassword}
-                    />
-
-                    <Pressable
-                        onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                        hitSlop={10}
-                        className="text-right mb-2"
-                    >
-                        <Text className="font-fredoka-semibold text-xs text-focusHero">
+                        <View className="bg-cozyBg border border-mutedBrown/30 rounded-2xl px-4 py-3 flex-row items-center justify-between">
+                        <TextInput
+                            placeholder="Confirm New Password"
+                            placeholderTextColor="#7D6E6B"
+                            value={confirmPassword}
+                            onChangeText={setConfirmPassword}
+                            secureTextEntry={!showConfirmPassword}
+                            autoCapitalize="none"
+                            className="font-fredoka text-base text-deepBrown flex-1 p-0"
+                        />
+                        <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)} hitSlop={10}>
+                            <Text className="font-fredoka-semibold text-xs text-focusHero ml-2">
                             {showConfirmPassword ? "Hide" : "Show"}
-                        </Text>
-                    </Pressable>
+                            </Text>
+                        </Pressable>
+                        </View>
+                    </View>
 
+                    {/* Update Password Button */}
                     <TouchableOpacity
                         onPress={handleUpdatePassword}
                         disabled={loadingPassword}
-                        className="bg-focusHero rounded-xl py-3 items-center justify-center"
+                        className="bg-focusHero rounded-xl py-3.5 items-center justify-center"
                     >
                         {loadingPassword ? (
-                            <ActivityIndicator color="#FDFBF7" size="small" />
+                        <ActivityIndicator color="#FDFBF7" size="small" />
                         ) : (
-                            <Text className="font-fredoka-bold text-cozyBg text-sm">Update Password</Text>
+                        <Text className="font-fredoka-bold text-cozyBg text-sm">Update Password</Text>
                         )}
                     </TouchableOpacity>
-                </View>
+                    </View>
 
                 {/* Section 3: Sign Out Trigger */}
                 <TouchableOpacity
