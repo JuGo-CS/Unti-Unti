@@ -24,7 +24,6 @@ interface TaskRow {
     position: number | null;
     // UBAC fields
     user_id: string;
-    list_id: string | null;
     // Joined from `categories` via cat_id
     categories?: { emoji_holder: string | null; cat_name: string | null } | null;
 }
@@ -107,14 +106,13 @@ function toHomeTask(row: TaskRow): HomeTask {
         description: row.description,
         catId: row.cat_id,
         userId: row.user_id,
-        listId: row.list_id,
         priority: normalizePriority(row.priority),
         deadline: normalizeDate(row.deadline),
         deadlineTime: extractTime(row.deadline),
         categoryName: row.categories?.cat_name ?? null,
         createdAt: row.created_at,
         position: row.position,
-        isFocus: row.is_focus,
+        isFocus: row.is_focus
     };
 }
 
@@ -464,8 +462,7 @@ export async function restoreTask(task: HomeTask): Promise<void> {
         deadline: task.deadline,
         created_at: task.createdAt,
         position: task.position,
-        user_id: task.userId ?? user.id,
-        list_id: task.listId ?? null,
+        user_id: task.userId ?? user.id
     });
 
     if (error) {
@@ -489,7 +486,6 @@ export function homeTaskToSnapshot(task: HomeTask): TaskSnapshot {
         description: task.description,
         catId: task.catId,
         userId: task.userId,
-        listId: task.listId,
         priority: task.priority,
         deadline: task.deadline,
         status: task.completed ? 'completed' : 'pending',
@@ -497,7 +493,7 @@ export function homeTaskToSnapshot(task: HomeTask): TaskSnapshot {
         position: task.position,
         completedDate: null,
         completedTime: null,
-        createdAt: task.createdAt,
+        createdAt: task.createdAt
     };
 }
 
@@ -534,7 +530,6 @@ export interface CreateTaskInput {
     cat_id: string | null;
     deadline: string | null;
     priority: string;
-    list_id?: string | null;
 }
 
 export async function createTask(input: CreateTaskInput): Promise<void> {
@@ -563,10 +558,7 @@ export async function createTask(input: CreateTaskInput): Promise<void> {
         (max, r) => Math.max(max, (r as { position: number }).position),
         0
     );
-    const nextPosition = (posRows ?? []).length > 0 ? maxPosition + 1 : 0;
-
-    // Use provided list_id or default to user's personal list
-    const listId = input.list_id ?? null;
+    const nextPosition = (posRows ?? []).length > 0 ? maxPosition + 1 : 0
 
     const { error } = await supabase.from('tasks').insert({
         title: input.title,
@@ -577,8 +569,7 @@ export async function createTask(input: CreateTaskInput): Promise<void> {
         deadline: input.deadline,
         priority: input.priority,
         position: nextPosition,
-        user_id: user.id,
-        list_id: listId,
+        user_id: user.id
     });
 
     if (error) {

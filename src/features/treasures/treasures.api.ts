@@ -36,7 +36,6 @@ interface CompletedTaskRow {
     created_at: string;
     // UBAC fields
     user_id: string;
-    list_id: string | null;
     // Joined from `categories` via cat_id
     categories?: { emoji_holder: string | null } | null;
 }
@@ -90,7 +89,6 @@ function toTreasureLog(row: CompletedTaskRow): TreasureLog {
         description: row.description,
         catId: row.cat_id,
         userId: row.user_id,
-        listId: row.list_id,
         iconName: iconForEmoji(row.categories?.emoji_holder),
         status: row.status === 'pending' ? 'pending' : 'completed',
         deadline: row.deadline ? row.deadline.slice(0, 10) : null,
@@ -98,7 +96,7 @@ function toTreasureLog(row: CompletedTaskRow): TreasureLog {
         position: row.position,
         createdAt: row.created_at,
         completedDate: row.completed_date ?? '',
-        completedTime: row.completed_time ?? '',
+        completedTime: row.completed_time ?? ''
     };
 }
 
@@ -206,8 +204,7 @@ export async function restoreTreasure(log: TreasureLog): Promise<void> {
         created_at: log.createdAt,
         completed_date: log.completedDate || null,
         completed_time: log.completedTime || null,
-        user_id: log.userId ?? user.id,
-        list_id: log.listId ?? null,
+        user_id: log.userId ?? user.id
     });
 
     if (error) {

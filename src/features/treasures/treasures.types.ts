@@ -10,7 +10,6 @@ export interface TreasureLog {
     description: string | null;
     catId: string | null;
     userId?: string;
-    listId?: string | null;
     iconName: keyof typeof Ionicons.glyphMap;
     /** The task's actual status: 'completed' for Wins, 'pending' for Home/Calendar. */
     status: 'completed' | 'pending';

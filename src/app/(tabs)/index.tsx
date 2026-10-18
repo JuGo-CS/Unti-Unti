@@ -35,7 +35,7 @@ import { getProfile } from '@/dp_operations/profile/profile';
 // Map a HomeTask to the TreasureLog shape the Wins edit/delete modals expect.
 // The modals only read id/title/description/catId; completedDate/Time are unused
 // in the edit/delete flows, so we supply empty placeholders.
-// userId and listId are optional in TreasureLog; include them if available on the task.
+// userId is optional in TreasureLog; include it if available on the task.
 function toTreasureLog(task: HomeTask): TreasureLog {
     return {
         id: task.id,
@@ -43,7 +43,6 @@ function toTreasureLog(task: HomeTask): TreasureLog {
         description: task.description,
         catId: task.catId,
         userId: task.userId,
-        listId: task.listId,
         iconName: task.iconName,
         status: task.completed ? 'completed' : 'pending',
         deadline: task.deadline,

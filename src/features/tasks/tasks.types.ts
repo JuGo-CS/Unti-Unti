@@ -17,8 +17,6 @@ export interface HomeTask {
   catId: string | null;
   /** The user ID who owns this task. */
   userId?: string;
-  /** The list ID this task belongs to (for collaborative lists). */
-  listId?: string | null;
   /** Priority from `tasks.priority`: 'high' | 'medium' | 'low'. */
   priority: 'high' | 'medium' | 'low';
   /** Deadline date as `YYYY-MM-DD`, or null if the task has no deadline. */
@@ -53,7 +51,6 @@ export interface TaskSnapshot {
   description: string | null;
   catId: string | null;
   userId?: string;
-  listId?: string | null;
   priority: string | null;
   deadline: string | null;
   status: string;
