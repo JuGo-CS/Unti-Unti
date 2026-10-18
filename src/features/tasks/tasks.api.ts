@@ -179,7 +179,6 @@ export async function fetchPendingTaskQueue(): Promise<TaskItemData[]> {
  * but is filtered out of the active queue by `fetchPendingTaskQueue`.
  */
 export async function completeTask(taskId: string): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
     const today = todayDateString();
     const time = nowTimeString();
 
@@ -217,7 +216,6 @@ export async function completeTask(taskId: string): Promise<void> {
             is_focus: false,
             completed_date: today,
             completed_time: time,
-            completed_by: user!.id,
         })
         .eq('task_id', taskId);
 
