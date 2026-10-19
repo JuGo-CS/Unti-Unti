@@ -246,10 +246,17 @@ export async function completeTask(taskId: string): Promise<void> {
  * Hero Task (if any) so the caller can restore it to the queue.
  */
 export async function setHeroTask(taskId: string): Promise<string | null> {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+        console.error('Failed to get current user:', userError?.message);
+        throw new Error('User not authenticated');
+    }
+
     // Find the current Hero Task (if any).
     const { data, error: fetchError } = await supabase
         .from('tasks')
         .select('task_id')
+        .eq('user_id', user.id)
         .eq('status', 'pending')
         .eq('is_focus', true);
 
@@ -272,10 +279,17 @@ export async function setHeroTask(taskId: string): Promise<string | null> {
                 .from('tasks')
                 .update({ is_focus: false })
                 .eq('task_id', previousHero)
+                .eq('user_id', user.id)
         );
     }
 
-    updates.push(supabase.from('tasks').update({ is_focus: true }).eq('task_id', taskId));
+    updates.push(
+        supabase
+            .from('tasks')
+            .update({ is_focus: true })
+            .eq('task_id', taskId)
+            .eq('user_id', user.id)
+    );
 
     const results = await Promise.all(updates);
     const error = results.find((r) => (r as { error?: unknown }).error);
