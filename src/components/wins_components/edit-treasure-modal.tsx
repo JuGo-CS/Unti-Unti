@@ -87,6 +87,21 @@ export default function EditTreasureModal({
     const [deadlineError, setDeadlineError] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    useEffect(() => {
+        if (visible && log) {
+            setStatus(log.status ?? 'pending');
+            setTitle(log.title ?? '');
+            setDescription(log.description ?? '');
+            setCatId(log.catId ?? null);
+            setDeadline(log.deadline ?? null);
+            setConfirming(false);
+            setTitleError(null);
+            setDescriptionError(null);
+            setDeadlineError(null);
+            setError(null);
+        }
+    }, [visible, log]);
+
     // Haptic feedback for modal open and close
     useEffect(() => {
         if (visible) {
