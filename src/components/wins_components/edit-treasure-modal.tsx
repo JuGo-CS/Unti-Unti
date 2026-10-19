@@ -206,7 +206,11 @@ export default function EditTreasureModal({
                         {/* Header */}
                         <View className="flex-row items-center justify-between mb-4">
                             <Text className="text-xl font-fredoka-bold text-deepBrown">
-                                {confirming ? 'Confirm Changes' : 'Edit Treasure'}
+                                {confirming 
+                                    ? 'Confirm Changes' 
+                                    : log?.status === 'pending' 
+                                        ? 'Edit Task' 
+                                        : 'Edit Treasure'}
                             </Text>
                             <TouchableOpacity onPress={handleClose} activeOpacity={0.7} disabled={saving}>
                                 <Ionicons name="close" size={24} color="#7D6E6B" />
