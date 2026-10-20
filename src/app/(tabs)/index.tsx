@@ -739,6 +739,7 @@ export default function HomeScreen() {
 
             {/* Edit task modal */}
             <EditTreasureModal
+                key={`${editModalVisible}-${editingTask?.id ?? 'none'}`}
                 visible={editModalVisible}
                 log={editingTask ? toTreasureLog(editingTask) : null}
                 categories={categories}

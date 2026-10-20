@@ -333,6 +333,7 @@ export default function WinsScreen() {
 
             {/* Edit treasure modal */}
             <EditTreasureModal
+                key={`${editModalVisible}-${editingLog?.id ?? 'none'}`}
                 visible={editModalVisible}
                 log={editingLog}
                 categories={categories}
