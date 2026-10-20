@@ -18,19 +18,19 @@ const taskListeners = new Set<Listener>();
  * Callers should pass a stable (memoized) listener.
  */
 export function subscribeToTaskChanges(listener: Listener): () => void {
-    taskListeners.add(listener);
-    return () => {
-        taskListeners.delete(listener);
-    };
+	taskListeners.add(listener);
+	return () => {
+		taskListeners.delete(listener);
+	};
 }
 
 /** Notify all subscribers that task data may have changed. */
 export function emitTaskDataChanged(): void {
-    taskListeners.forEach((listener) => {
-        try {
-            listener();
-        } catch (err) {
-            console.error('Task change listener threw:', err);
-        }
-    });
+	taskListeners.forEach((listener) => {
+		try {
+			listener();
+		} catch (err) {
+			console.error('Task change listener threw:', err);
+		}
+	});
 }

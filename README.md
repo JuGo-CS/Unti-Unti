@@ -12,13 +12,13 @@ Unti-Unti is a mobile application designed to help users cultivate positive habi
 
 ## Tech Stack
 
-| Category           | Technology                                                                 |
-|--------------------|----------------------------------------------------------------------------|
-| **Framework**      | React Native (Expo Router v3)                                              |
-| **Styling**        | NativeWind v4 / Tailwind CSS (Fredoka font theme, cozy color palette)      |
-| **Backend & Auth** | Supabase (Authentication & PostgreSQL Database)                            |
-| **State Management**| React Context & Local State                                                |
-| **Database**       | PostgreSQL (via Supabase)                                                  |
+| Category             | Technology                                                            |
+| -------------------- | --------------------------------------------------------------------- |
+| **Framework**        | React Native (Expo Router v3)                                         |
+| **Styling**          | NativeWind v4 / Tailwind CSS (Fredoka font theme, cozy color palette) |
+| **Backend & Auth**   | Supabase (Authentication & PostgreSQL Database)                       |
+| **State Management** | React Context & Local State                                           |
+| **Database**         | PostgreSQL (via Supabase)                                             |
 
 ---
 
@@ -27,40 +27,43 @@ Unti-Unti is a mobile application designed to help users cultivate positive habi
 Unti-Unti implements a secure authentication system using Supabase Auth with the following features:
 
 ### Core Authentication Flows
+
 - **Email & Password Sign Up**: Users create accounts with email validation and secure password storage
 - **Email & Password Sign In**: Secure login with session management via JWT tokens
-- _**Password Recovery**:  To be implemented_
-  - OTP-based recovery flow (6-digit code sent to email)
-  - User enters OTP in app to verify identity
-  - Upon verification, user can set new password
-  - Automatic sign-out after password reset for security
+- _**Password Recovery**: To be implemented_
+    - OTP-based recovery flow (6-digit code sent to email)
+    - User enters OTP in app to verify identity
+    - Upon verification, user can set new password
+    - Automatic sign-out after password reset for security
 - **Session Management**:
-  - Server-side sessions managed by Supabase
-  - Client stores session refresh token securely
-  - Automatic token refresh when needed
-  - Session persistence across app restarts
-  - Sign-out clears all session data
+    - Server-side sessions managed by Supabase
+    - Client stores session refresh token securely
+    - Automatic token refresh when needed
+    - Session persistence across app restarts
+    - Sign-out clears all session data
 
 ### Profile Management
+
 - **Display Name Updates**: Changes synchronized between Supabase Auth `user_metadata` and custom `profiles` table
 - **Password Updates**: Secure password change requiring current password verification
 - **Real-time Synchronization**: Profile updates reflected immediately across auth and database layers
 
 ### Example Authentication Operations
+
 ```typescript
 // Sign up
 const { data, error } = await supabase.auth.signUp({
-  email: 'user@example.com',
-  password: 'secure-password123',
-  options: {
-    data: { display_name: 'User Name' }
-  }
+	email: 'user@example.com',
+	password: 'secure-password123',
+	options: {
+		data: { display_name: 'User Name' },
+	},
 });
 
-// Sign in  
+// Sign in
 const { data, error } = await supabase.auth.signInWithPassword({
-  email: 'user@example.com',
-  password: 'secure-password123'
+	email: 'user@example.com',
+	password: 'secure-password123',
 });
 
 // Password reset request (sends OTP)
@@ -68,14 +71,14 @@ const { error } = await supabase.auth.resetPasswordForEmail('user@example.com');
 
 // OTP verification
 const { error } = await supabase.auth.verifyOtp({
-  email: 'user@example.com',
-  token: '123456',
-  type: 'recovery'
+	email: 'user@example.com',
+	token: '123456',
+	type: 'recovery',
 });
 
 // Password update (after OTP verification)
 const { error } = await supabase.auth.updateUser({
-  password: 'new-secure-password'
+	password: 'new-secure-password',
 });
 
 // Sign out
@@ -107,24 +110,27 @@ alter publication supabase_realtime add table profiles;
 ## Key Features Implemented
 
 ### Authentication
+
 - **Email & Password Sign Up**: Secure account creation with validation
 - **Email & Password Sign In**: Seamless login experience with session persistence
 - **Password Recovery**: _To be implemented_
-- **Profile Management**: 
-  - Update display name (synced across Supabase Auth `user_metadata` and `profiles` table)
-  - Secure password update functionality
-  - Real-time synchronization between client and server
+- **Profile Management**:
+    - Update display name (synced across Supabase Auth `user_metadata` and `profiles` table)
+    - Secure password update functionality
+    - Real-time synchronization between client and server
 
 ### 🎨 Cozy Design System
+
 - **Typography**: Custom Fredoka font throughout for friendly, approachable feel
-- **Color Theme**: 
-  - `bg-cozyBg` - Warm, inviting background
-  - `text-deepBrown` - Rich, readable text
-  - `bg-focusHero` - Vibrant accent for primary actions
+- **Color Theme**:
+    - `bg-cozyBg` - Warm, inviting background
+    - `text-deepBrown` - Rich, readable text
+    - `bg-focusHero` - Vibrant accent for primary actions
 - **Spacing & Rhythm**: Consistent, comfortable layout based on 4px grid
 - **Interactive Feedback**: Subtle press animations and loading states
 
 ### 📱 Core Functionality
+
 - Habit creation with customizable frequency (daily, weekly, etc.)
 - Progress tracking with visual streaks and completion rates
 - Goal setting with milestone tracking
@@ -139,6 +145,7 @@ alter publication supabase_realtime add table profiles;
 Follow these steps to get Unti-Unti running on your local machine:
 
 ### 1. Prerequisites
+
 - [Node.js](https://nodejs.org/) (v18+ recommended)
 - [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
 - [Expo CLI](https://docs.expo.dev/get-started/installation/) (`npm install -g expo-cli`)
@@ -167,6 +174,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 > 🔑 **Finding your Supabase keys**:
+>
 > 1. Go to your [Supabase dashboard](https://supabase.com/dashboard)
 > 2. Select your project
 > 3. Navigate to **Settings → API**
@@ -232,9 +240,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 > **Note**: This app is developed as part of CMSC 128 at University of the Philippines Visayas.  
-> Built with care by Kenneth Modejar 
+> Built with care by Kenneth Modejar
 
---- 
+---
 
-*Last updated: September 2026*  
-*Version: 1.0.0*
+_Last updated: September 2026_  
+_Version: 1.0.0_

@@ -6,74 +6,81 @@ import { TreasureLog } from '@/features/treasures/treasures.types';
 
 /** Format a `HH:MM:SS` time into a friendly label like "2:30 PM". */
 function formatTimeLabel(timeStr: string): string {
-    if (!timeStr) return '';
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    const date = new Date();
-    date.setHours(hours, minutes, 0, 0);
-    return date.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-    });
+	if (!timeStr) return '';
+	const [hours, minutes] = timeStr.split(':').map(Number);
+	const date = new Date();
+	date.setHours(hours, minutes, 0, 0);
+	return date.toLocaleTimeString('en-US', {
+		hour: 'numeric',
+		minute: '2-digit',
+	});
 }
 
 interface TreasureLogCardProps {
-    log: TreasureLog;
-    onEdit?: (log: TreasureLog) => void;
-    onDelete?: (log: TreasureLog) => void;
+	log: TreasureLog;
+	onEdit?: (log: TreasureLog) => void;
+	onDelete?: (log: TreasureLog) => void;
 }
 
 // A single completed task log card ("Treasure") displayed under a date group.
 // Tapping the card reveals Edit and Delete actions.
 function TreasureLogCard({ log, onEdit, onDelete }: TreasureLogCardProps) {
-    const [showActions, setShowActions] = useState(false);
+	const [showActions, setShowActions] = useState(false);
 
-    return (
-        <View className="mb-3">
-            <TouchableOpacity
-                onPress={() => setShowActions((prev) => !prev)}
-                activeOpacity={0.8}
-                className="flex-row items-center bg-cardBg rounded-2xl px-4 py-3 border border-black"
-            >
-                {/* Task icon */}
-                <View className="bg-taskStack/40 rounded-lg p-2 mr-3">
-                    <Ionicons name={log.iconName as keyof typeof Ionicons.glyphMap} size={20} color="#7D6E6B" />
-                </View>
+	return (
+		<View className="mb-3">
+			<TouchableOpacity
+				onPress={() => setShowActions((prev) => !prev)}
+				activeOpacity={0.8}
+				className="flex-row items-center bg-cardBg rounded-2xl px-4 py-3 border border-black"
+			>
+				{/* Task icon */}
+				<View className="bg-taskStack/40 rounded-lg p-2 mr-3">
+					<Ionicons
+						name={log.iconName as keyof typeof Ionicons.glyphMap}
+						size={20}
+						color="#7D6E6B"
+					/>
+				</View>
 
-                {/* Title + completion time */}
-                <View className="flex-1">
-                    <Text
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                        className="text-base font-fredoka-semibold text-deepBrown"
-                    >
-                        {log.title}
-                    </Text>
-                    <Text className="text-sm font-fredoka text-mutedBrown mt-0.5">
-                        Completed at {formatTimeLabel(log.completedTime)}
-                    </Text>
-                </View>
-            </TouchableOpacity>
+				{/* Title + completion time */}
+				<View className="flex-1">
+					<Text
+						numberOfLines={1}
+						ellipsizeMode="tail"
+						className="text-base font-fredoka-semibold text-deepBrown"
+					>
+						{log.title}
+					</Text>
+					<Text className="text-sm font-fredoka text-mutedBrown mt-0.5">
+						Completed at {formatTimeLabel(log.completedTime)}
+					</Text>
+				</View>
+			</TouchableOpacity>
 
-            {/* Edit / Delete actions revealed on tap */}
-            {showActions && (
-                <TaskActions
-                    onEdit={() => onEdit?.(log)}
-                    onDelete={() => onDelete?.(log)}
-                />
-            )}
-        </View>
-    );
+			{/* Edit / Delete actions revealed on tap */}
+			{showActions && (
+				<TaskActions
+					onEdit={() => onEdit?.(log)}
+					onDelete={() => onDelete?.(log)}
+				/>
+			)}
+		</View>
+	);
 }
 
-function areEqual(prevProps: TreasureLogCardProps, nextProps: TreasureLogCardProps): boolean {
-    return (
-        prevProps.log.id === nextProps.log.id &&
-        prevProps.log.title === nextProps.log.title &&
-        prevProps.log.iconName === nextProps.log.iconName &&
-        prevProps.log.completedTime === nextProps.log.completedTime &&
-        prevProps.onEdit === nextProps.onEdit &&
-        prevProps.onDelete === nextProps.onDelete
-    );
+function areEqual(
+	prevProps: TreasureLogCardProps,
+	nextProps: TreasureLogCardProps
+): boolean {
+	return (
+		prevProps.log.id === nextProps.log.id &&
+		prevProps.log.title === nextProps.log.title &&
+		prevProps.log.iconName === nextProps.log.iconName &&
+		prevProps.log.completedTime === nextProps.log.completedTime &&
+		prevProps.onEdit === nextProps.onEdit &&
+		prevProps.onDelete === nextProps.onDelete
+	);
 }
 
 export default memo(TreasureLogCard, areEqual);
