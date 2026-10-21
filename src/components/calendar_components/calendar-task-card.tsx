@@ -223,7 +223,7 @@ export default memo(
 			<View className="bg-cardBg rounded-2xl mb-4 overflow-hidden border border-white/50">
 				{/* Top section — tap to complete */}
 				<TouchableOpacity
-					onPress={() => onToggle?.(task)}
+					onPress={() => setExpanded((prev) => !prev)}
 					activeOpacity={0.8}
 					className="flex-row items-center px-4 py-3 bg-habitCard rounded-2xl z-20"
 				>
