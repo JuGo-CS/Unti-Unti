@@ -1,6 +1,6 @@
 # Unti-Unti
 
-A cozy, step-by-step habit & goal tracker built with React Native and Expo. Track your progress, build better habits, and watch your growth unfold—one gentle step at a time.
+A cozy, step-by-step habit & goal tracker built with React Native (Expo), and Supabase. Track your progress, build better habits, and watch your growth unfold—one gentle step at a time.
 
 ---
 
@@ -9,6 +9,20 @@ A cozy, step-by-step habit & goal tracker built with React Native and Expo. Trac
 Unti-Unti is a mobile application designed to help users cultivate positive habits and achieve personal goals through a warm, encouraging interface. Built with React Native and Expo, it combines intuitive habit tracking with a soothing aesthetic inspired by nature and mindfulness practices. The app focuses on making progress feel achievable and enjoyable, turning daily actions into meaningful steps toward long-term aspirations.
 
 ---
+
+### App Screens
+
+| Home Screen | Calendar Queue |
+| :---: | :---: |
+| <photo-1_homepage> | <photo-2_calendar> |
+
+| Wins & Treasures | Profile & Settings |
+| :---: | :---: |
+| <photo-3_wins> | <photo-4_profile> |
+
+| Add Task Modal | Dynamic Header |
+| :---: | :---: |
+| <photo-5_add_modal> | <photo-6_night_mode> |
 
 ## Tech Stack
 
