@@ -718,6 +718,9 @@ export default function HomeScreen() {
 		};
 	}, [fetchUserName]);
 
+	const currentHour = today.getHours();
+	const isDaytime = currentHour >= 6 && currentHour < 18;
+
 	if (!fontsLoaded) {
 		return null;
 	}
@@ -728,8 +731,8 @@ export default function HomeScreen() {
 			<View className="flex-row items-start justify-between">
 				<View className="flex-1 pr-4">
 					<Text className="text-4xl font-fredoka-semibold text-deepBrown leading-tight">
-						Maayung{'\n'}
-						adlaw, {loading ? '...' : `${userName}!`}
+						{isDaytime ? 'Maayung\nadlaw, ' : 'Maayung\ngabe, '}{' '}
+						{loading ? '...' : `${userName}!`}
 					</Text>
 					{/* Horizontal line underneath the heading */}
 					<View className="h-[2px] bg-deepBrown mt-2" />
@@ -740,10 +743,10 @@ export default function HomeScreen() {
 				</View>
 				{/* Sun icon in the top-right, slightly above the text */}
 				<Ionicons
-					name="sunny"
-					size={80}
-					color="#F4C542"
-					style={{ marginTop: -22 }}
+					name={isDaytime ? 'sunny' : 'moon'}
+					size={isDaytime ? 80 : 70}
+					color={isDaytime ? '#F4C542' : '#5069A0'}
+					style={{ marginTop: isDaytime ? -22 : -12 }}
 				/>
 			</View>
 
