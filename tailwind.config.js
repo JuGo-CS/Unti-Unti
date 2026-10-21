@@ -38,6 +38,7 @@ module.exports = {
 				deadlineBadge: '#D6E2E9',
 				timeBadge: '#E1D5E7',
 				categoryBadge: '#D4E5F7',
+				listsBrown: '#E5E2DB',
 			},
 		},
 	},

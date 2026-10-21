@@ -220,7 +220,7 @@ export default memo(
 
 		// Normal mode: top row completes, bottom bar expands details.
 		return (
-			<View className="bg-cardBg rounded-2xl mb-4 overflow-hidden border border-white/50">
+			<View className="bg-listsBrown rounded-3xl mb-4 overflow-hidden border border-white/60">
 				{/* Top section — tap to complete */}
 				<TouchableOpacity
 					onPress={() => setExpanded((prev) => !prev)}
@@ -270,11 +270,11 @@ export default memo(
 
 				{/* Expanded details */}
 				{expanded && (
-					<View className="px-4 pt-4 pb-5 bg-cardBg border-t border-deepBrown/10 rounded-b-2xl">
+					<View className="px-4 pt-4 pb-5 bg-cardBg rounded-b-2xl">
 						{/* Description Section */}
 						<View className="mb-4">
-							<Text className="text-xs font-fredoka-semibold text-mutedBrown uppercase tracking-wider mb-1">
-								Description
+							<Text className="text-xs font-fredoka-semibold text-deepBrown uppercase tracking-wider mb-1">
+								Description:
 							</Text>
 							<Text
 								className={`text-sm font-fredoka ${
