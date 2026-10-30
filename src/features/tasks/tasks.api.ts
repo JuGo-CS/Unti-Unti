@@ -203,7 +203,11 @@ export async function fetchPendingTaskQueue(): Promise<TaskItemData[]> {
 		.order('created_at', { ascending: true });
 
 	if (error) {
-		return handleAuthError(error, 'fetchPendingTaskQueue', fetchPendingTaskQueue);
+		return handleAuthError(
+			error,
+			'fetchPendingTaskQueue',
+			fetchPendingTaskQueue
+		);
 	}
 
 	const rows = (data ?? []) as unknown as TaskRow[];

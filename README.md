@@ -12,16 +12,16 @@ Unti-Unti is a mobile application designed to help users cultivate positive habi
 
 ### App Screens
 
-| Home Screen | Calendar Queue |
-| :---: | :---: |
+|    Home Screen     |   Calendar Queue   |
+| :----------------: | :----------------: |
 | <photo-1_homepage> | <photo-2_calendar> |
 
 | Wins & Treasures | Profile & Settings |
-| :---: | :---: |
-| <photo-3_wins> | <photo-4_profile> |
+| :--------------: | :----------------: |
+|  <photo-3_wins>  | <photo-4_profile>  |
 
-| Add Task Modal | Dynamic Header |
-| :---: | :---: |
+|   Add Task Modal    |    Dynamic Header    |
+| :-----------------: | :------------------: |
 | <photo-5_add_modal> | <photo-6_night_mode> |
 
 ## Tech Stack
