@@ -50,7 +50,8 @@
 		"bundle-check": "npx expo export --dump-assetmap",
 		"check": "npm run typecheck && npm run lint && npm run bundle-check",
 		"format-check": "npx prettier --write .",
-		"format-write": "npx prettier --write ."
+		"format-write": "npx prettier --write .",
+    "apk:update": "npx eas-cli@latest update --channel preview --platform android --environment preview"        
 	},
 	"private": true
 }
