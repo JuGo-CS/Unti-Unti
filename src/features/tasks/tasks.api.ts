@@ -152,6 +152,44 @@ function orderTaskQueue(rows: TaskRow[]): TaskRow[] {
 }
 
 /**
+ * Handle "JWT issued at future" error (clock skew) by refreshing the session
+ * and retrying the operation.
+ */
+async function handleAuthError<T>(
+	error: unknown,
+	context: string,
+	retryFn: () => Promise<T>
+): Promise<T> {
+	const err = error as { message?: string; code?: string };
+	if (
+		err?.message?.includes('JWT issued at future') ||
+		err?.code === 'JWT_ISSUED_AT_FUTURE'
+	) {
+		console.warn(
+			`${context}: JWT clock skew detected, refreshing session...`
+		);
+		const {
+			data: { session },
+			error: refreshError,
+		} = await supabase.auth.refreshSession();
+		if (refreshError) {
+			console.error(
+				`${context}: Failed to refresh session:`,
+				refreshError.message
+			);
+			throw refreshError;
+		}
+		if (session) {
+			console.log(
+				`${context}: Session refreshed successfully, retrying...`
+			);
+			return retryFn();
+		}
+	}
+	throw error;
+}
+
+/**
  * Fetch all pending tasks and return them as an ordered queue.
  *
  * The frontend treats the queue as a single ordered list where index 0 is the
@@ -165,8 +203,7 @@ export async function fetchPendingTaskQueue(): Promise<TaskItemData[]> {
 		.order('created_at', { ascending: true });
 
 	if (error) {
-		console.error('Failed to fetch pending tasks:', error.message);
-		throw error;
+		return handleAuthError(error, 'fetchPendingTaskQueue', fetchPendingTaskQueue);
 	}
 
 	const rows = (data ?? []) as unknown as TaskRow[];
@@ -197,11 +234,9 @@ export async function completeTask(taskId: string): Promise<void> {
 		.order('created_at', { ascending: true });
 
 	if (fetchError) {
-		console.error(
-			'Failed to load tasks for promotion:',
-			fetchError.message
+		return handleAuthError(fetchError, 'completeTask/fetch', () =>
+			completeTask(taskId)
 		);
-		throw fetchError;
 	}
 
 	const rows = (data ?? []) as {
@@ -230,8 +265,9 @@ export async function completeTask(taskId: string): Promise<void> {
 		.eq('task_id', taskId);
 
 	if (updateError) {
-		console.error('Failed to complete task:', updateError.message);
-		throw updateError;
+		return handleAuthError(updateError, 'completeTask/update', () =>
+			completeTask(taskId)
+		);
 	}
 
 	// 2. Promote the next task in queue order to be the new Hero Task.
@@ -242,8 +278,9 @@ export async function completeTask(taskId: string): Promise<void> {
 			.eq('task_id', nextTask.task_id);
 
 		if (promoteError) {
-			console.error('Failed to promote next task:', promoteError.message);
-			throw promoteError;
+			return handleAuthError(promoteError, 'completeTask/promote', () =>
+				completeTask(taskId)
+			);
 		}
 	}
 }
@@ -261,7 +298,11 @@ export async function setHeroTask(taskId: string): Promise<string | null> {
 		error: userError,
 	} = await supabase.auth.getUser();
 	if (userError || !user) {
-		console.error('Failed to get current user:', userError?.message);
+		return handleAuthError(userError, 'setHeroTask/getUser', () =>
+			setHeroTask(taskId)
+		);
+	}
+	if (!user) {
 		throw new Error('User not authenticated');
 	}
 
@@ -274,8 +315,9 @@ export async function setHeroTask(taskId: string): Promise<string | null> {
 		.eq('is_focus', true);
 
 	if (fetchError) {
-		console.error('Failed to load current hero task:', fetchError.message);
-		throw fetchError;
+		return handleAuthError(fetchError, 'setHeroTask/fetch', () =>
+			setHeroTask(taskId)
+		);
 	}
 
 	const rows = (data ?? []) as { task_id: string }[];
@@ -309,8 +351,9 @@ export async function setHeroTask(taskId: string): Promise<string | null> {
 	const error = results.find((r) => (r as { error?: unknown }).error);
 	if (error) {
 		const err = (error as { error: { message: string } }).error;
-		console.error('Failed to set hero task:', err.message);
-		throw err;
+		return handleAuthError(err, 'setHeroTask/update', () =>
+			setHeroTask(taskId)
+		);
 	}
 
 	return previousHero;
