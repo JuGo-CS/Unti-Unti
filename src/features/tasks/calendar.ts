@@ -9,9 +9,9 @@ import { HomeTask } from '@/features/tasks/tasks.types';
 
 /** Normalize a deadline value to a `YYYY-MM-DD` date string (first 10 chars). */
 function normalizeDate(value: string | null): string | null {
-    if (!value) return null;
-    const datePart = value.slice(0, 10);
-    return /^\d{4}-\d{2}-\d{2}$/.test(datePart) ? datePart : null;
+	if (!value) return null;
+	const datePart = value.slice(0, 10);
+	return /^\d{4}-\d{2}-\d{2}$/.test(datePart) ? datePart : null;
 }
 
 /**
@@ -24,21 +24,22 @@ function normalizeDate(value: string | null): string | null {
  * qualifies, stays at the top (it is already first in the global queue).
  */
 export function filterTasksByDate(
-    tasks: HomeTask[],
-    selectedDate: string
+	tasks: HomeTask[],
+	selectedDate: string
 ): HomeTask[] {
-    return tasks.filter((task) => {
-        const deadline = normalizeDate(task.deadline);
-        if (!deadline) return true;
-        return deadline >= selectedDate;
-    });
+	return tasks.filter((task) => {
+		const deadline = normalizeDate(task.deadline);
+		if (!deadline) return true;
+		return deadline >= selectedDate;
+	});
 }
 
 /**
  * The available Calendar filter criteria. These act as filters (which tasks are
  * visible), NOT global ordering — the global Home queue is never modified.
  */
-export type CalendarFilterCriteria = 'manual' | 'priority' | 'deadline' | 'category' | 'createdAt';
+export type CalendarFilterCriteria =
+	'manual' | 'priority' | 'deadline' | 'category' | 'createdAt';
 
 /**
  * Filter the tasks by the given criterion + value, preserving their relative
@@ -53,25 +54,25 @@ export type CalendarFilterCriteria = 'manual' | 'priority' | 'deadline' | 'categ
  * A missing/null value behaves like 'manual' (no filtering) for that criterion.
  */
 export function filterTasks(
-    tasks: HomeTask[],
-    criteria: CalendarFilterCriteria,
-    value: string | null
+	tasks: HomeTask[],
+	criteria: CalendarFilterCriteria,
+	value: string | null
 ): HomeTask[] {
-    if (!value) return tasks;
-    switch (criteria) {
-        case 'category':
-            return tasks.filter((t) => t.categoryName === value);
-        case 'priority':
-            return tasks.filter((t) => t.priority === value);
-        case 'deadline':
-            return tasks.filter((t) => {
-                const deadline = normalizeDate(t.deadline);
-                return !!deadline && deadline >= value;
-            });
-        case 'createdAt':
-            return tasks.filter((t) => t.createdAt.slice(0, 10) >= value);
-        case 'manual':
-        default:
-            return tasks;
-    }
+	if (!value) return tasks;
+	switch (criteria) {
+		case 'category':
+			return tasks.filter((t) => t.categoryName === value);
+		case 'priority':
+			return tasks.filter((t) => t.priority === value);
+		case 'deadline':
+			return tasks.filter((t) => {
+				const deadline = normalizeDate(t.deadline);
+				return !!deadline && deadline >= value;
+			});
+		case 'createdAt':
+			return tasks.filter((t) => t.createdAt.slice(0, 10) >= value);
+		case 'manual':
+		default:
+			return tasks;
+	}
 }
