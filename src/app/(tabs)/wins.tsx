@@ -151,6 +151,7 @@ export default function WinsScreen() {
 				title: editingLog.title,
 				description: editingLog.description,
 				catId: editingLog.catId,
+				listId: editingLog.listId,
 				priority: editingLog.priority,
 				deadline: editingLog.deadline,
 				status: editingLog.status,

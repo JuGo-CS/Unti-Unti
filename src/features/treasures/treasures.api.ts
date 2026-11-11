@@ -41,6 +41,7 @@ interface CompletedTaskRow {
 	created_at: string;
 	// UBAC fields
 	user_id: string;
+	list_id: string | null;
 	// Joined from `categories` via cat_id
 	categories?: { emoji_holder: string | null } | null;
 }
@@ -96,6 +97,7 @@ function toTreasureLog(row: CompletedTaskRow): TreasureLog {
 		description: row.description,
 		catId: row.cat_id,
 		userId: row.user_id,
+		listId: row.list_id,
 		iconName: iconForEmoji(row.categories?.emoji_holder),
 		status: row.status === 'pending' ? 'pending' : 'completed',
 		deadline: row.deadline ? row.deadline.slice(0, 10) : null,
@@ -218,6 +220,7 @@ export async function restoreTreasure(log: TreasureLog): Promise<void> {
 		completed_date: log.completedDate || null,
 		completed_time: log.completedTime || null,
 		user_id: log.userId ?? user.id,
+		list_id: log.listId ?? null,
 	});
 
 	if (error) {
@@ -283,7 +286,8 @@ export async function updateTreasure(
 	};
 
 	if (payload.status === 'pending') {
-		// Get the current user for position query
+		// Resolve the task's list so a restored task is positioned within its
+		// list rather than in a user's combined personal/shared task queue.
 		const {
 			data: { user },
 			error: userError,
@@ -293,15 +297,32 @@ export async function updateTreasure(
 			throw new Error('User not authenticated');
 		}
 
+		const { data: task, error: taskError } = await supabase
+			.from('tasks')
+			.select('list_id, user_id')
+			.eq('task_id', taskId)
+			.maybeSingle();
+
+		if (taskError) {
+			console.error('Failed to read task list:', taskError.message);
+			throw taskError;
+		}
+		if (!task) {
+			throw new Error('Task not found or not accessible');
+		}
+
 		// Revert to pending: clear completion metadata and unset focus so the
 		// task rejoins the queue as a non-focus pending task. Assign the next
 		// position so it appends cleanly without a gap or conflict.
-		const { data: posRows, error: posError } = await supabase
+		let positionQuery = supabase
 			.from('tasks')
 			.select('position')
 			.eq('status', 'pending')
-			.eq('user_id', user.id)
 			.not('position', 'is', null);
+		positionQuery = task.list_id
+			? positionQuery.eq('list_id', task.list_id)
+			: positionQuery.eq('user_id', task.user_id ?? user.id);
+		const { data: posRows, error: posError } = await positionQuery;
 
 		if (posError) {
 			console.error('Failed to read task positions:', posError.message);

@@ -71,6 +71,7 @@ function toTreasureLog(task: HomeTask): TreasureLog {
 		description: task.description,
 		catId: task.catId,
 		userId: task.userId,
+		listId: task.listId,
 		iconName: task.iconName,
 		status: task.completed ? 'completed' : 'pending',
 		deadline: task.deadline,
