@@ -2,6 +2,7 @@ import { supabase } from '../../lib/supabase';
 import { TaskItemData } from '@/components/index_components/task-item';
 import { HomeTask, HomeSortCriteria, TaskSnapshot } from './tasks.types';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { ensurePersonalList } from '@/features/lists/lists.api';
 
 /**
  * Raw shape of a row from the `tasks` table (joined with its category).
@@ -24,6 +25,7 @@ interface TaskRow {
 	position: number | null;
 	// UBAC fields
 	user_id: string;
+	list_id: string | null;
 	// Joined from `categories` via cat_id
 	categories?: {
 		emoji_holder: string | null;
@@ -113,6 +115,7 @@ function toHomeTask(row: TaskRow): HomeTask {
 		description: row.description,
 		catId: row.cat_id,
 		userId: row.user_id,
+		listId: row.list_id,
 		priority: normalizePriority(row.priority),
 		deadline: normalizeDate(row.deadline),
 		deadlineTime: extractTime(row.deadline),
@@ -562,6 +565,7 @@ export async function restoreTask(task: HomeTask): Promise<void> {
 		created_at: task.createdAt,
 		position: task.position,
 		user_id: task.userId ?? user.id,
+		list_id: task.listId ?? null,
 	});
 
 	if (error) {
@@ -585,6 +589,7 @@ export function homeTaskToSnapshot(task: HomeTask): TaskSnapshot {
 		description: task.description,
 		catId: task.catId,
 		userId: task.userId,
+		listId: task.listId,
 		priority: task.priority,
 		deadline: task.deadline,
 		status: task.completed ? 'completed' : 'pending',
@@ -616,6 +621,7 @@ export async function restoreTaskSnapshot(
 			position: snapshot.position,
 			completed_date: snapshot.completedDate,
 			completed_time: snapshot.completedTime,
+			list_id: snapshot.listId ?? null,
 		})
 		.eq('task_id', snapshot.id);
 
@@ -644,13 +650,15 @@ export async function createTask(input: CreateTaskInput): Promise<void> {
 		throw new Error('User not authenticated');
 	}
 
+	const listId = await ensurePersonalList();
+
 	// Determine the next queue position so the new task is appended without
 	// creating a gap or conflicting with existing positions.
 	const { data: posRows, error: posError } = await supabase
 		.from('tasks')
 		.select('position')
 		.eq('status', 'pending')
-		.eq('user_id', user.id)
+		.eq('list_id', listId)
 		.not('position', 'is', null);
 
 	if (posError) {
@@ -674,6 +682,7 @@ export async function createTask(input: CreateTaskInput): Promise<void> {
 		priority: input.priority,
 		position: nextPosition,
 		user_id: user.id,
+		list_id: listId,
 	});
 
 	if (error) {
