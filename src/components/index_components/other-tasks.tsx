@@ -254,7 +254,7 @@ export default function OtherTasks({
 					style={{ paddingBottom: (visibleTasks.length - 1) * 12 }}
 				>
 					<TouchableOpacity
-						onPress={() => onToggleTask?.(visibleTasks[0])}
+						// onPress={() => onToggleTask?.(visibleTasks[0])}
 						activeOpacity={0.85}
 						className="relative z-10 bg-taskStack rounded-2xl px-4 border border-white/50"
 						style={{
