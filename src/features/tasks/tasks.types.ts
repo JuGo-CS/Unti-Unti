@@ -36,7 +36,6 @@ export interface HomeTask {
 	/** Whether the task is completed. */
 	completed: boolean;
 	iconName: keyof typeof Ionicons.glyphMap;
-	emoji: string;
 }
 
 /** Sorting criteria for the Home task queue. */

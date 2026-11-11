@@ -1,8 +1,9 @@
-/** Emoji shown on the left of the habit card. */
+import { CategoryIconName } from '@/utils/category-icon';
+
 export interface HabitData {
 	id: string;
 	title: string;
-	/** Emoji shown on the left of the habit card. */
-	emoji: string;
+	/** Category icon shown on the left of the habit card. */
+	iconName: CategoryIconName;
 	completed?: boolean;
 }

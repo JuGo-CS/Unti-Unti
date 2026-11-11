@@ -264,11 +264,22 @@ export default function EditTreasureModal({
 										<Text className="text-sm font-fredoka-semibold text-mutedBrown">
 											Category
 										</Text>
-										<Text className="text-sm font-fredoka-semibold text-deepBrown">
-											{selectedCategory
-												? `${selectedCategory.emoji} ${selectedCategory.cat_name}`
-												: 'None'}
-										</Text>
+										{selectedCategory ? (
+											<View className="flex-row items-center">
+												<Ionicons
+													name={selectedCategory.iconName}
+													size={16}
+													color="#3D2E2B"
+												/>
+												<Text className="text-sm font-fredoka-semibold text-deepBrown ml-1">
+													{selectedCategory.cat_name}
+												</Text>
+											</View>
+										) : (
+											<Text className="text-sm font-fredoka-semibold text-deepBrown">
+												None
+											</Text>
+										)}
 									</View>
 									<View className="flex-row items-center justify-between mt-2">
 										<Text className="text-sm font-fredoka-semibold text-mutedBrown">
@@ -416,9 +427,12 @@ export default function EditTreasureModal({
 															: 'bg-cardBg'
 													}`}
 												>
-													<Text className="mr-1">
-														{cat.emoji}
-													</Text>
+													<Ionicons
+														name={cat.iconName}
+														size={16}
+														color={selected ? '#FFFFFF' : '#3D2E2B'}
+														style={{ marginRight: 4 }}
+													/>
 													<Text
 														className={`font-fredoka-semibold ${selected ? 'text-white' : 'text-deepBrown'}`}
 													>

@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { getCategoryIconName } from '@/utils/category-icon';
 import {
 	TreasureLog,
 	TreasureGroup,
@@ -46,38 +46,6 @@ interface CompletedTaskRow {
 	categories?: { emoji_holder: string | null } | null;
 }
 
-/**
- * Map a category's stored emoji to an Ionicons glyph name so the UI can render it.
- * Falls back to a neutral icon when the emoji is unknown or missing.
- */
-const EMOJI_TO_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
-	'🧘': 'body',
-	'💻': 'laptop',
-	'🌱': 'leaf',
-	'📚': 'book',
-	'💧': 'water',
-	'🚶': 'walk',
-	'🧎': 'body',
-	'📝': 'create',
-	'🎓': 'school',
-	'💼': 'briefcase',
-	'🏃': 'barbell',
-	'🧠': 'bulb',
-	'💤': 'moon',
-	'🍎': 'nutrition',
-	'🎨': 'color-palette',
-};
-
-const DEFAULT_ICON: keyof typeof Ionicons.glyphMap = 'ellipse-outline';
-
-/** Resolve the Ionicons name for a category emoji, with a neutral fallback. */
-function iconForEmoji(
-	emoji: string | null | undefined
-): keyof typeof Ionicons.glyphMap {
-	if (!emoji) return DEFAULT_ICON;
-	return EMOJI_TO_ICON[emoji] ?? DEFAULT_ICON;
-}
-
 /** Format a `YYYY-MM-DD` date into a friendly label like "September 9, 2026". */
 function formatDateLabel(dateStr: string): string {
 	const [year, month, day] = dateStr.split('-').map(Number);
@@ -98,7 +66,7 @@ function toTreasureLog(row: CompletedTaskRow): TreasureLog {
 		catId: row.cat_id,
 		userId: row.user_id,
 		listId: row.list_id,
-		iconName: iconForEmoji(row.categories?.emoji_holder),
+		iconName: getCategoryIconName(row.categories?.emoji_holder),
 		status: row.status === 'pending' ? 'pending' : 'completed',
 		deadline: row.deadline ? row.deadline.slice(0, 10) : null,
 		priority: row.priority,
@@ -262,7 +230,7 @@ export async function fetchCategories(): Promise<Category[]> {
 	return rows.map((row) => ({
 		cat_id: row.cat_id,
 		cat_name: row.cat_name,
-		emoji: row.emoji_holder ?? '✨',
+		iconName: getCategoryIconName(row.emoji_holder),
 	}));
 }
 

@@ -17,8 +17,13 @@ function HabitCard({ habit, onToggle }: HabitCardProps) {
 			activeOpacity={0.7}
 			className="flex-row items-center bg-habitCard rounded-2xl px-4 py-4 mr-3"
 		>
-			{/* Emoji icon */}
-			<Text className="text-2xl mr-3">{habit.emoji}</Text>
+			{/* Category icon */}
+			<Ionicons
+				name={habit.iconName}
+				size={24}
+				color="#3D2E2B"
+				style={{ marginRight: 12 }}
+			/>
 
 			{/* Habit title */}
 			<Text
@@ -52,7 +57,7 @@ function areEqual(
 	return (
 		prevProps.habit.id === nextProps.habit.id &&
 		prevProps.habit.title === nextProps.habit.title &&
-		prevProps.habit.emoji === nextProps.habit.emoji &&
+		prevProps.habit.iconName === nextProps.habit.iconName &&
 		prevProps.habit.completed === nextProps.habit.completed &&
 		prevProps.onToggle === nextProps.onToggle
 	);

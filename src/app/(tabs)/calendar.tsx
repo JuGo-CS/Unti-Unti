@@ -486,9 +486,12 @@ export default function CalendarScreen() {
 											activeOpacity={0.7}
 											className={`flex-row items-center px-3 py-2 rounded-xl mr-2 mb-2 ${selected ? 'bg-focusHero' : 'bg-cardBg'}`}
 										>
-											<Text className="mr-1">
-												{cat.emoji}
-											</Text>
+											<Ionicons
+												name={cat.iconName}
+												size={16}
+												color={selected ? '#FFFFFF' : '#3D2E2B'}
+												style={{ marginRight: 4 }}
+											/>
 											<Text
 												className={`font-fredoka-semibold ${selected ? 'text-white' : 'text-deepBrown'}`}
 											>

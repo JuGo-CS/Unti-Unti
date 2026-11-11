@@ -138,7 +138,7 @@ const LoginForm: React.FC = () => {
 					{/* Header */}
 					<View className="mb-8 mt-2">
 						<Text className="font-fredoka-bold text-3xl text-deepBrown tracking-wide">
-							Welcome Back
+							Welcome to Unti-Unti
 						</Text>
 						<Text className="font-fredoka text-base text-mutedBrown mt-1.5 leading-6">
 							Log in to continue your progress

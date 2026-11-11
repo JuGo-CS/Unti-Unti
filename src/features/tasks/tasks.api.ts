@@ -1,8 +1,8 @@
 import { supabase } from '../../lib/supabase';
 import { TaskItemData } from '@/components/index_components/task-item';
 import { HomeTask, HomeSortCriteria, TaskSnapshot } from './tasks.types';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { ensurePersonalList } from '@/features/lists/lists.api';
+import { getCategoryIconName } from '@/utils/category-icon';
 
 /**
  * Raw shape of a row from the `tasks` table (joined with its category).
@@ -33,30 +33,6 @@ interface TaskRow {
 	} | null;
 }
 
-/**
- * Map a category's stored emoji to an Ionicons glyph name so the UI can render it.
- * Falls back to a neutral icon when the emoji is unknown or missing.
- */
-const EMOJI_TO_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
-	'🧘': 'body',
-	'💻': 'laptop',
-	'🌱': 'leaf',
-	'📚': 'book',
-	'💧': 'water',
-	'🚶': 'walk',
-	'🧎': 'body',
-	'📝': 'create',
-	'🎓': 'school',
-	'💼': 'briefcase',
-	'🏃': 'barbell',
-	'🧠': 'bulb',
-	'💤': 'moon',
-	'🍎': 'nutrition',
-	'🎨': 'color-palette',
-};
-
-const DEFAULT_ICON: keyof typeof Ionicons.glyphMap = 'ellipse-outline';
-
 /** Today's date as `YYYY-MM-DD` in local time, matching `completed_date`. */
 function todayDateString(): string {
 	const now = new Date();
@@ -69,14 +45,6 @@ function todayDateString(): string {
 /** Current time as `HH:MM:SS` in local time, matching `completed_time`. */
 function nowTimeString(): string {
 	return new Date().toTimeString().slice(0, 8);
-}
-
-/** Resolve the Ionicons name for a category emoji, with a neutral fallback. */
-function iconForEmoji(
-	emoji: string | null | undefined
-): keyof typeof Ionicons.glyphMap {
-	if (!emoji) return DEFAULT_ICON;
-	return EMOJI_TO_ICON[emoji] ?? DEFAULT_ICON;
 }
 
 /** Normalize a priority value into a known union, defaulting to 'low'. */
@@ -102,15 +70,10 @@ function extractTime(value: string | null): string | null {
 
 /** Convert a raw tasks row into the `HomeTask` shape the UI expects. */
 function toHomeTask(row: TaskRow): HomeTask {
-	const mappedIcon = iconForEmoji(row.categories?.emoji_holder);
-
 	return {
 		id: row.task_id,
 		title: row.title,
-		iconName:
-			(mappedIcon as keyof typeof Ionicons.glyphMap) ??
-			'checkbox-outline', // <-- Fallback guarantees string value
-		emoji: row.categories?.emoji_holder ?? '📌',
+		iconName: getCategoryIconName(row.categories?.emoji_holder),
 		completed: row.status === 'completed',
 		description: row.description,
 		catId: row.cat_id,

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { CategoryIconName } from '@/utils/category-icon';
 
 /**
  * A single completed task log ("Treasure") shown in the Wins screen.
@@ -45,7 +46,7 @@ export interface TreasureGroup {
 export interface Category {
 	cat_id: string;
 	cat_name: string;
-	emoji: string;
+	iconName: CategoryIconName;
 }
 
 /**

@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabase';
 import { HabitData } from './habits.types';
+import { getCategoryIconName } from '@/utils/category-icon';
 
 /**
  * Raw shape of a row from the `habits` table (joined with its category).
@@ -35,7 +36,7 @@ function toHabitData(row: HabitRow): HabitData {
 	return {
 		id: row.habit_id,
 		title: row.title,
-		emoji: row.categories?.emoji_holder ?? '✨',
+		iconName: getCategoryIconName(row.categories?.emoji_holder),
 		completed: false,
 	};
 }
