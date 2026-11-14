@@ -30,6 +30,7 @@ export default function ProfileScreen() {
 	});
 
 	const [user, setUser] = useState<User | null>(null);
+	const [username, setUsername] = useState('');
 	const [displayNameInput, setDisplayNameInput] = useState('');
 	const [newPassword, setNewPassword] = useState('');
 	const [confirmPassword, setConfirmPassword] = useState('');
@@ -57,7 +58,17 @@ export default function ProfileScreen() {
 					setUser(user);
 
 					// Fetch real display name from database
-					const { data } = await getProfile(user.id);
+					const { data, error: profileError } = await getProfile(
+						user.id
+					);
+					if (profileError) {
+						console.error(
+							'Failed to fetch profile details:',
+							profileError.message
+						);
+					}
+					const accountUsername =
+						data?.username || user.user_metadata?.username || '';
 					const name =
 						data?.display_name ||
 						data?.username ||
@@ -66,6 +77,7 @@ export default function ProfileScreen() {
 						'';
 
 					setUserName(name || 'Friend');
+					setUsername(accountUsername);
 					setDisplayNameInput(name);
 				}
 			} catch (error) {
@@ -201,6 +213,14 @@ export default function ProfileScreen() {
 					<Text className="text-sm font-fredoka text-mutedBrown mt-0.5">
 						{user?.email ?? ''}
 					</Text>
+					<View className="mt-3 border-t border-mutedBrown/15 pt-3">
+						<Text className="text-xs font-fredoka-semibold text-mutedBrown uppercase tracking-wider mb-1">
+							Username
+						</Text>
+						<Text className="text-base font-fredoka-medium text-deepBrown">
+							{username ? `@${username}` : 'Username not set'}
+						</Text>
+					</View>
 				</View>
 
 				{/* Section 1: Display Name */}

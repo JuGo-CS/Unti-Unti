@@ -109,15 +109,21 @@ While Supabase manages the auth system automatically, Unti-Unti extends function
 -- profiles table (extends auth.users)
 create table public.profiles (
   id uuid references auth.users on delete cascade primary key,
+  username text,
   display_name text,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Enforce case-insensitive username uniqueness.
+create unique index profiles_username_lower_unique
+  on public.profiles (lower(btrim(username)))
+  where username is not null and btrim(username) <> '';
 
 -- Enable real-time subscriptions
 alter publication supabase_realtime add table profiles;
 ```
 
-**Note**: No manual migrations or seeding required - Supabase handles auth schema automatically, and the profiles table is created on first app launch if needed.
+Apply the username uniqueness migration in `supabase/migrations` to the Supabase database. Resolve any existing duplicate usernames (case-insensitive) before applying it. Account creation stores a normalized username in Auth metadata; the database profile-creation trigger must copy it into `public.profiles.username` for the unique index to enforce it.
 
 ---
 

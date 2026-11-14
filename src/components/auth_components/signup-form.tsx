@@ -28,6 +28,23 @@ const SignupForm: React.FC = () => {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
+	const usernameConflict = (err: unknown): boolean => {
+		if (!err || typeof err !== 'object') return false;
+		const { code, message, details } = err as {
+			code?: string;
+			message?: string;
+			details?: string;
+		};
+		const serverMessage = `${message ?? ''} ${details ?? ''}`.toLowerCase();
+		return (
+			serverMessage.includes('profiles_username_lower_unique') ||
+			(serverMessage.includes('username') &&
+				(serverMessage.includes('duplicate') ||
+					serverMessage.includes('unique'))) ||
+			code === '23505'
+		);
+	};
+
 	const handleSubmit = async () => {
 		setError(null);
 
@@ -48,6 +65,14 @@ const SignupForm: React.FC = () => {
 			return;
 		}
 
+		const normalizedUsername = username.trim().toLowerCase();
+		if (!/^[a-z0-9_]{3,30}$/.test(normalizedUsername)) {
+			setError(
+				'Username must be 3–30 characters and use only letters, numbers, or underscores.'
+			);
+			return;
+		}
+
 		if (password.length < 6) {
 			setError('Password must be at least 6 characters long.');
 			return;
@@ -61,12 +86,26 @@ const SignupForm: React.FC = () => {
 		setLoading(true);
 
 		try {
+			const {
+				data: usernameAvailable,
+				error: usernameCheckError,
+			} = await supabase.rpc('is_username_available', {
+				candidate_username: normalizedUsername,
+			});
+			if (usernameCheckError) throw usernameCheckError;
+			if (!usernameAvailable) {
+				setError(
+					'That username is already taken. Please choose another one.'
+				);
+				return;
+			}
+
 			const { error: signUpError } = await supabase.auth.signUp({
 				email: email.trim(),
 				password,
 				options: {
 					data: {
-						username: username.trim(),
+						username: normalizedUsername,
 						display_name: displayName.trim(),
 					},
 				},
@@ -84,8 +123,16 @@ const SignupForm: React.FC = () => {
 			setDisplayName('');
 			setPassword('');
 			setConfirmPassword('');
-		} catch (err: any) {
-			setError(err.message || 'An error occurred during sign up.');
+		} catch (err: unknown) {
+			if (usernameConflict(err)) {
+				setError(
+					'That username is already taken. Please choose another one.'
+				);
+			} else if (err instanceof Error) {
+				setError(err.message || 'An error occurred during sign up.');
+			} else {
+				setError('An error occurred during sign up.');
+			}
 		} finally {
 			setLoading(false);
 		}
@@ -147,10 +194,14 @@ const SignupForm: React.FC = () => {
 								onChangeText={setUsername}
 								autoCapitalize="none"
 								autoCorrect={false}
+								maxLength={30}
 								className="font-fredoka text-base text-deepBrown p-0"
 								placeholderTextColor="#7D6E6B"
 							/>
 						</View>
+						<Text className="font-fredoka text-xs text-mutedBrown mt-1 ml-1">
+							3–30 letters, numbers, or underscores; must be unique.
+						</Text>
 					</View>
 
 					{/* Display Name Field */}
