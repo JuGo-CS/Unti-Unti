@@ -682,54 +682,10 @@ export default function HomeScreen() {
 				/>
 			</View>
 
-			{/* Hero Card — highlights the single focus task, or a relaxing message when all done */}
-			<View className="mt-8">
-				{tasksLoading ? (
-					<View className="rounded-3xl bg-focusHero p-5 items-center justify-center">
-						<ActivityIndicator color="#FFFFFF" />
-						<Text className="text-lg font-fredoka-medium text-white mt-3">
-							Loading your tasks...
-						</Text>
-					</View>
-				) : taskError ? (
-					<View className="rounded-3xl bg-focusHero p-5 items-center justify-center">
-						<Text className="text-lg font-fredoka-medium text-deepBrown mt-3">
-							Failed to load tasks. Please try again.
-						</Text>
-						<TouchableOpacity
-							onPress={handleRefresh}
-							activeOpacity={0.7}
-							className="mt-4 bg-focusHero text-white px-6 py-3 rounded-xl font-fredoka-semibold"
-						>
-							<Text className="font-fredoka-semibold">Retry</Text>
-						</TouchableOpacity>
-					</View>
-				) : (
-					<HeroCard
-						task={heroTask}
-						empty={!heroTask}
-						onComplete={handleHeroComplete}
-					/>
-				)}
-			</View>
-
-			{/* Other tasks title + sort + edit button — fixed (hidden when no other tasks remain) */}
-			{!tasksLoading && !taskError && otherTasks.length > 0 && (
-				<View className="mt-8">
-					<OtherTasksHeader
-						editMode={editMode}
-						onToggleEdit={handleToggleEdit}
-						sortCriteria={sortCriteria}
-						onChangeSort={handleChangeSort}
-					/>
-				</View>
-			)}
-
-			{/* Scrollable content below the Other Tasks header — scroll only when expanded */}
+			{/* Main content scrolls so the focus card and task header move away naturally. */}
 			<ScrollView
 				className="flex-1"
 				showsVerticalScrollIndicator={false}
-				// scrollEnabled={otherTasksExpanded}
 				contentContainerStyle={{ paddingBottom: 120 }}
 				refreshControl={
 					<RefreshControl
@@ -739,6 +695,51 @@ export default function HomeScreen() {
 					/>
 				}
 			>
+				{/* Hero Card — highlights the single focus task, or a relaxing message when all done */}
+				<View className="mt-8">
+					{tasksLoading ? (
+						<View className="rounded-3xl bg-focusHero p-5 items-center justify-center">
+							<ActivityIndicator color="#FFFFFF" />
+							<Text className="text-lg font-fredoka-medium text-white mt-3">
+								Loading your tasks...
+							</Text>
+						</View>
+					) : taskError ? (
+						<View className="rounded-3xl bg-focusHero p-5 items-center justify-center">
+							<Text className="text-lg font-fredoka-medium text-deepBrown mt-3">
+								Failed to load tasks. Please try again.
+							</Text>
+							<TouchableOpacity
+								onPress={handleRefresh}
+								activeOpacity={0.7}
+								className="mt-4 bg-focusHero text-white px-6 py-3 rounded-xl font-fredoka-semibold"
+							>
+								<Text className="font-fredoka-semibold">
+									Retry
+								</Text>
+							</TouchableOpacity>
+						</View>
+					) : (
+						<HeroCard
+							task={heroTask}
+							empty={!heroTask}
+							onComplete={handleHeroComplete}
+						/>
+					)}
+				</View>
+
+				{/* Other tasks title + sort + edit button */}
+				{!tasksLoading && !taskError && otherTasks.length > 0 && (
+					<View className="mt-8">
+						<OtherTasksHeader
+							editMode={editMode}
+							onToggleEdit={handleToggleEdit}
+							sortCriteria={sortCriteria}
+							onChangeSort={handleChangeSort}
+						/>
+					</View>
+				)}
+
 				{/* Other tasks — stacked queue preview with expand/collapse */}
 				{!tasksLoading && !taskError && (
 					<OtherTasks
