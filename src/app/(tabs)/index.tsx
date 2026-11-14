@@ -22,9 +22,8 @@ import HeroCard from '@/components/index_components/hero-card';
 import OtherTasks, {
 	OtherTasksHeader,
 } from '@/components/index_components/other-tasks';
-import DailyHabits from '@/components/index_components/daily-habits';
+import CollaborativeLists from '@/components/index_components/collaborative-lists';
 import { TaskItemData } from '@/components/index_components/task-item';
-import { HabitData } from '@/features/habits/habits.types';
 import Toast, { ToastData } from '@/components/ui/toast';
 import EditTreasureModal from '@/components/wins_components/edit-treasure-modal';
 import DeleteTreasureModal from '@/components/wins_components/delete-treasure-modal';
@@ -45,11 +44,6 @@ import {
 	homeTaskToSnapshot,
 } from '@/features/tasks/tasks.api';
 import {
-	fetchTodayHabits,
-	logHabitCompletion,
-	undoHabitCompletion,
-} from '@/features/habits/habits.api';
-import {
 	fetchCategories,
 	updateTreasure,
 	deleteTreasure,
@@ -59,6 +53,10 @@ import {
 import { triggerHaptic } from '@/utils/haptics';
 import { supabase } from '@/lib/supabase';
 import { getProfile } from '@/dp_operations/profile/profile';
+import {
+	CollaborativeListSummary,
+	fetchCollaborativeLists,
+} from '@/features/lists/lists.api';
 
 // Map a HomeTask to the TreasureLog shape the Wins edit/delete modals expect.
 // The modals only read id/title/description/catId; completedDate/Time are unused
@@ -116,10 +114,13 @@ export default function HomeScreen() {
 	const [sortCriteria, setSortCriteria] =
 		useState<HomeSortCriteria>('manual');
 
-	// Daily habits — loaded from the Supabase `habits` table.
-	const [habits, setHabits] = useState<HabitData[]>([]);
-	const [habitsLoading, setHabitsLoading] = useState(true);
-	const [habitsError, setHabitsError] = useState(false);
+	const [collaborativeLists, setCollaborativeLists] = useState<
+		CollaborativeListSummary[]
+	>([]);
+	const [collaborativeListsLoading, setCollaborativeListsLoading] =
+		useState(true);
+	const [collaborativeListsError, setCollaborativeListsError] =
+		useState(false);
 
 	// Whether the "Other tasks" queue is expanded.
 	const [otherTasksExpanded, setOtherTasksExpanded] = useState(false);
@@ -184,6 +185,17 @@ export default function HomeScreen() {
 			});
 	}, []);
 
+	const refreshCollaborativeLists = useCallback(() => {
+		setCollaborativeListsError(false);
+		return fetchCollaborativeLists()
+			.then(setCollaborativeLists)
+			.catch((err) => {
+				console.error('Failed to load collaborative lists:', err);
+				setCollaborativeListsError(true);
+			})
+			.finally(() => setCollaborativeListsLoading(false));
+	}, []);
+
 	// Load the pending task queue whenever the screen gains focus.
 	useFocusEffect(
 		useCallback(() => {
@@ -201,37 +213,19 @@ export default function HomeScreen() {
 		}, [refreshTasks])
 	);
 
-	// Refetch whenever task data changes.
+	// Refetch task data and collaborative previews whenever task data changes.
 	useEffect(() => {
 		const subs = subscribeToTaskChanges(() => {
 			refreshTasks();
+			refreshCollaborativeLists();
 		});
 		return subs;
-	}, [refreshTasks]);
+	}, [refreshTasks, refreshCollaborativeLists]);
 
-	// Load today's habits from Supabase whenever the screen gains focus.
 	useFocusEffect(
 		useCallback(() => {
-			let active = true;
-			setHabitsError(false); // reset error at start of fetch
-			fetchTodayHabits()
-				.then((habitsData) => {
-					if (active) setHabits(habitsData);
-				})
-				.catch((err) => {
-					if (active) {
-						console.error('Failed to load habits:', err);
-						setHabitsError(true);
-					}
-				})
-				.finally(() => {
-					if (active) setHabitsLoading(false);
-				});
-
-			return () => {
-				active = false;
-			};
-		}, [])
+			refreshCollaborativeLists();
+		}, [refreshCollaborativeLists])
 	);
 
 	// Fetch categories once on mount.
@@ -322,33 +316,6 @@ export default function HomeScreen() {
 				});
 		},
 		[syncPositions, sortCriteria]
-	);
-
-	// Undo a habit completion: remove today's log so the habit reappears.
-	// If showToast is false, no toast is shown (used for internal rollback).
-	const undoHabit = useCallback(
-		(habit: HabitData, showToast: boolean = true) => {
-			undoHabitCompletion(habit.id)
-				.then(() => {
-					setHabits((prev) =>
-						prev.some((h) => h.id === habit.id)
-							? prev
-							: [...prev, habit]
-					);
-					if (showToast) {
-						setToast({ message: 'Habit restored.' });
-					}
-				})
-				.catch((err) => {
-					console.error('Failed to undo habit completion:', err);
-					if (showToast) {
-						setToast({
-							message: 'Could not undo. Please try again later.',
-						});
-					}
-				});
-		},
-		[setHabits, setToast]
 	);
 
 	// Completing the Hero Task promotes the next task in line.
@@ -616,59 +583,23 @@ export default function HomeScreen() {
 		[refreshTasks, undoTaskDeletion]
 	);
 
-	// Pull-to-refresh: refetch tasks + habits, guarding against duplicate runs.
+	// Pull-to-refresh: refetch tasks and collaborative lists.
 	const handleRefresh = useCallback(() => {
 		if (refreshing) return;
 		setRefreshing(true);
 		setTaskError(false); // reset error on refresh
-		setHabitsError(false); // reset error on refresh
 		Promise.all([
 			refreshTasks(),
-			fetchTodayHabits()
-				.then(setHabits)
-				.catch(() => setHabitsError(true)),
+			refreshCollaborativeLists(),
 		])
 			.catch((err) => {
 				console.error('Failed to refresh Home:', err);
 				setTaskError(true);
-				setHabitsError(true);
 			})
 			.finally(() => {
 				setRefreshing(false);
 			});
-	}, [refreshing, refreshTasks]);
-
-	const handleToggleHabit = useCallback(
-		(habit: HabitData) => {
-			triggerHaptic.heavy(); // Habit completion toggle
-			// 1. Optimistically update the state: remove the habit from the list.
-			setHabits((prev) => prev.filter((h) => h.id !== habit.id));
-
-			// 2. Show a toast with an undo option.
-			setToast({
-				message: 'Habit completed!',
-				undoLabel: 'Undo',
-				onUndo: () => undoHabit(habit, true),
-			});
-
-			// 3. Persist the completion to the database.
-			logHabitCompletion(habit.id)
-				.then(() => {
-					// On success, do nothing to the toast.
-					emitTaskDataChanged();
-				})
-				.catch((err) => {
-					console.error('Failed to complete habit:', err);
-					// Rollback the optimistic update.
-					undoHabit(habit, false);
-					setToast({
-						message: 'Failed to complete habit. Please try again.',
-						undoLabel: undefined,
-					});
-				});
-		},
-		[setHabits, setToast, undoHabit]
-	);
+	}, [refreshing, refreshTasks, refreshCollaborativeLists]);
 
 	const [userName, setUserName] = useState<string>('');
 	const [loading, setLoading] = useState(true);
@@ -826,33 +757,12 @@ export default function HomeScreen() {
 					/>
 				)}
 
-				{/* Daily habits — horizontal carousel */}
-				{!habitsLoading && !habitsError && (
-					<DailyHabits
-						habits={habits}
-						onToggleHabit={handleToggleHabit}
-					/>
-				)}
-
-				{/* Error states for habits and tasks */}
-				{habitsError && !habitsLoading && (
-					<View className="mt-8">
-						<Text className="text-base font-fredoka text-deepBrown">
-							Failed to load habits. Please try again.
-						</Text>
-						<View className="mt-3">
-							<TouchableOpacity
-								onPress={handleRefresh}
-								activeOpacity={0.7}
-								className="bg-focusHero text-white px-6 py-3 rounded-xl font-fredoka-semibold"
-							>
-								<Text className="font-fredoka-semibold">
-									Retry
-								</Text>
-							</TouchableOpacity>
-						</View>
-					</View>
-				)}
+				<CollaborativeLists
+					lists={collaborativeLists}
+					loading={collaborativeListsLoading}
+					error={collaborativeListsError}
+					onRetry={refreshCollaborativeLists}
+				/>
 			</ScrollView>
 
 			{/* Edit task modal */}
@@ -881,7 +791,6 @@ export default function HomeScreen() {
 				deleting={deleting}
 			/>
 
-			{/* Success toast for daily habit completion. */}
 			<Toast toast={toast} onDismiss={() => setToast(null)} />
 		</View>
 	);

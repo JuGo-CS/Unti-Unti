@@ -2,6 +2,77 @@ import { supabase } from '../../lib/supabase';
 
 const PERSONAL_LIST_TITLE = 'Personal To-Do List';
 
+export interface CollaborativeListTask {
+	id: string;
+	title: string;
+	status: string;
+	position: number | null;
+	createdAt: string;
+}
+
+export interface CollaborativeListSummary {
+	id: string;
+	title: string;
+	description: string | null;
+	tasks: CollaborativeListTask[];
+}
+
+/**
+ * Fetch collaborative lists visible to the signed-in user and their tasks.
+ * Row-level security on both tables controls which lists and tasks are returned.
+ */
+export async function fetchCollaborativeLists(): Promise<
+	CollaborativeListSummary[]
+> {
+	const { data: lists, error: listsError } = await supabase
+		.from('lists')
+		.select('list_id, title, description')
+		.eq('is_collaborative', true)
+		.order('created_at', { ascending: true });
+
+	if (listsError) {
+		console.error('Failed to fetch collaborative lists:', listsError.message);
+		throw listsError;
+	}
+
+	const visibleLists = lists ?? [];
+	if (visibleLists.length === 0) return [];
+
+	const listIds = visibleLists.map((list) => list.list_id);
+	const { data: tasks, error: tasksError } = await supabase
+		.from('tasks')
+		.select('task_id, list_id, title, status, position, created_at')
+		.in('list_id', listIds)
+		.order('position', { ascending: true, nullsFirst: false })
+		.order('created_at', { ascending: true });
+
+	if (tasksError) {
+		console.error('Failed to fetch collaborative list tasks:', tasksError.message);
+		throw tasksError;
+	}
+
+	const tasksByList = new Map<string, CollaborativeListTask[]>();
+	for (const task of tasks ?? []) {
+		if (!task.list_id) continue;
+		const listTasks = tasksByList.get(task.list_id) ?? [];
+		listTasks.push({
+			id: task.task_id,
+			title: task.title,
+			status: task.status,
+			position: task.position,
+			createdAt: task.created_at,
+		});
+		tasksByList.set(task.list_id, listTasks);
+	}
+
+	return visibleLists.map((list) => ({
+		id: list.list_id,
+		title: list.title,
+		description: list.description,
+		tasks: tasksByList.get(list.list_id) ?? [],
+	}));
+}
+
 /**
  * Return the signed-in user's personal list, creating it on first task creation.
  * Existing personal tasks without a list are attached to it during the same
