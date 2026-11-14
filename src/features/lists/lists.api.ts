@@ -183,6 +183,42 @@ export async function deleteCollaborativeTask(
 	}
 }
 
+export async function deleteCollaborativeList(
+	listId: string
+): Promise<void> {
+	const {
+		data: { user },
+		error: userError,
+	} = await supabase.auth.getUser();
+
+	if (userError) {
+		console.error('Failed to verify collaborative-list owner:', userError.message);
+		throw userError;
+	}
+	if (!user) {
+		throw new Error('User not authenticated');
+	}
+
+	const { data, error } = await supabase
+		.from('lists')
+		.delete()
+		.eq('list_id', listId)
+		.eq('owner_id', user.id)
+		.eq('is_collaborative', true)
+		.select('list_id')
+		.maybeSingle();
+
+	if (error) {
+		console.error('Failed to delete collaborative list:', error.message);
+		throw error;
+	}
+	if (!data) {
+		throw new Error(
+			'Only the creator can delete this collaborative list, or it no longer exists.'
+		);
+	}
+}
+
 export async function addCollaboratorByUsername(
 	listId: string,
 	username: string
@@ -253,7 +289,6 @@ export async function fetchCollaborativeLists(): Promise<
 			'task_id, list_id, title, description, status, position, created_at'
 		)
 		.in('list_id', listIds)
-		.order('position', { ascending: true, nullsFirst: false })
 		.order('created_at', { ascending: true });
 
 	if (tasksError) {
@@ -281,7 +316,16 @@ export async function fetchCollaborativeLists(): Promise<
 		title: list.title,
 		description: list.description,
 		isOwner: list.owner_id === user.id,
-		tasks: tasksByList.get(list.list_id) ?? [],
+		tasks: (tasksByList.get(list.list_id) ?? []).sort((first, second) => {
+			const completionOrder =
+				Number(first.status === 'completed') -
+				Number(second.status === 'completed');
+			return (
+				completionOrder ||
+				first.createdAt.localeCompare(second.createdAt) ||
+				first.id.localeCompare(second.id)
+			);
+		}),
 	}));
 }
 

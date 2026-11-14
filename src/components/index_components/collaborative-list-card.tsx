@@ -14,6 +14,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import {
 	addCollaboratorByUsername,
 	createCollaborativeTask,
+	deleteCollaborativeList,
 	deleteCollaborativeTask,
 	setCollaborativeTaskStatus,
 	updateCollaborativeTask,
@@ -22,7 +23,12 @@ import {
 } from '@/features/lists/lists.api';
 
 const PREVIEW_COUNT = 3;
-type ListAction = 'task' | 'member' | 'editTask' | 'deleteTask';
+type ListAction =
+	| 'task'
+	| 'member'
+	| 'editTask'
+	| 'deleteTask'
+	| 'deleteList';
 
 export default function CollaborativeListCard({
 	list,
@@ -99,6 +105,29 @@ export default function CollaborativeListCard({
 					error instanceof Error
 						? error.message
 						: 'Could not delete the task. Please try again.'
+				);
+			} finally {
+				setSaving(false);
+			}
+			return;
+		}
+
+		if (action === 'deleteList') {
+			if (!list.isOwner) {
+				setActionError('Only the list creator can delete this list.');
+				return;
+			}
+
+			setSaving(true);
+			try {
+				await deleteCollaborativeList(list.id);
+				finishAction();
+				onActionComplete('Collaborative list deleted.');
+			} catch (error) {
+				setActionError(
+					error instanceof Error
+						? error.message
+						: 'Could not delete the collaborative list. Please try again.'
 				);
 			} finally {
 				setSaving(false);
@@ -431,6 +460,24 @@ export default function CollaborativeListCard({
 							</TouchableOpacity>
 						)}
 					</View>
+					{list.isOwner && (
+						<TouchableOpacity
+							onPress={() => openAction('deleteList')}
+							activeOpacity={0.75}
+							className="mt-2 flex-row items-center justify-center rounded-xl border border-[#C0392B]/20 py-2.5"
+							accessibilityRole="button"
+							accessibilityLabel={`Delete collaborative list ${list.title}`}
+						>
+							<Ionicons
+								name="trash-outline"
+								size={16}
+								color="#C0392B"
+							/>
+							<Text className="ml-1.5 font-fredoka-semibold text-[#C0392B]">
+								Delete collaborative list
+							</Text>
+						</TouchableOpacity>
+					)}
 				</View>
 			</View>
 
@@ -454,7 +501,9 @@ export default function CollaborativeListCard({
 											? 'Edit task'
 											: action === 'member'
 												? 'Add a member'
-												: 'Delete task?'}
+												: action === 'deleteTask'
+													? 'Delete task?'
+													: 'Delete collaborative list?'}
 								</Text>
 								<Text
 									numberOfLines={1}
@@ -544,13 +593,22 @@ export default function CollaborativeListCard({
 									/>
 								</View>
 							</>
-						) : (
+						) : action === 'deleteTask' ? (
 							<View className="mb-4 rounded-2xl bg-[#C0392B]/10 px-4 py-4">
 								<Text className="font-fredoka-semibold text-deepBrown">
 									{editingTask?.title}
 								</Text>
 								<Text className="mt-1 font-fredoka text-mutedBrown">
 									This permanently removes the task from this shared list.
+								</Text>
+							</View>
+						) : (
+							<View className="mb-4 rounded-2xl bg-[#C0392B]/10 px-4 py-4">
+								<Text className="font-fredoka-semibold text-deepBrown">
+									{list.title}
+								</Text>
+								<Text className="mt-1 font-fredoka text-mutedBrown">
+									This permanently deletes the collaborative list, its tasks, and its members.
 								</Text>
 							</View>
 						)}
@@ -566,7 +624,8 @@ export default function CollaborativeListCard({
 							disabled={saving}
 							activeOpacity={0.8}
 							className={`items-center justify-center rounded-xl py-3.5 ${
-								action === 'deleteTask'
+								action === 'deleteTask' ||
+								action === 'deleteList'
 									? 'bg-[#C0392B]'
 									: 'bg-focusHero'
 							} ${
@@ -583,7 +642,9 @@ export default function CollaborativeListCard({
 											? 'Save changes'
 											: action === 'member'
 												? 'Check username & add'
-												: 'Delete task'}
+													: action === 'deleteTask'
+														? 'Delete task'
+														: 'Delete list'}
 								</Text>
 							)}
 						</TouchableOpacity>
@@ -591,7 +652,11 @@ export default function CollaborativeListCard({
 							<TouchableOpacity
 								onPress={() => {
 									setActionError(null);
-									setAction('editTask');
+									if (action === 'deleteTask') {
+										setAction('editTask');
+									} else {
+										finishAction();
+									}
 								}}
 								disabled={saving}
 								activeOpacity={0.75}
