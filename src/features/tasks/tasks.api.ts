@@ -162,10 +162,12 @@ async function handleAuthError<T>(
  * current Hero Task. The schema marks the hero task with `is_focus`.
  */
 export async function fetchPendingTaskQueue(): Promise<TaskItemData[]> {
+	const listId = await ensurePersonalList();
 	const { data, error } = await supabase
 		.from('tasks')
 		.select('*, categories(emoji_holder, cat_name)')
 		.eq('status', 'pending')
+		.eq('list_id', listId)
 		.order('created_at', { ascending: true });
 
 	if (error) {
@@ -193,6 +195,7 @@ export async function fetchPendingTaskQueue(): Promise<TaskItemData[]> {
  * but is filtered out of the active queue by `fetchPendingTaskQueue`.
  */
 export async function completeTask(taskId: string): Promise<void> {
+	const listId = await ensurePersonalList();
 	const today = todayDateString();
 	const time = nowTimeString();
 
@@ -201,6 +204,7 @@ export async function completeTask(taskId: string): Promise<void> {
 		.from('tasks')
 		.select('task_id, is_focus, created_at, position')
 		.eq('status', 'pending')
+		.eq('list_id', listId)
 		.order('created_at', { ascending: true });
 
 	if (fetchError) {
@@ -232,7 +236,8 @@ export async function completeTask(taskId: string): Promise<void> {
 			completed_date: today,
 			completed_time: time,
 		})
-		.eq('task_id', taskId);
+		.eq('task_id', taskId)
+		.eq('list_id', listId);
 
 	if (updateError) {
 		return handleAuthError(updateError, 'completeTask/update', () =>
@@ -245,7 +250,8 @@ export async function completeTask(taskId: string): Promise<void> {
 		const { error: promoteError } = await supabase
 			.from('tasks')
 			.update({ is_focus: true })
-			.eq('task_id', nextTask.task_id);
+			.eq('task_id', nextTask.task_id)
+			.eq('list_id', listId);
 
 		if (promoteError) {
 			return handleAuthError(promoteError, 'completeTask/promote', () =>
@@ -275,12 +281,13 @@ export async function setHeroTask(taskId: string): Promise<string | null> {
 	if (!user) {
 		throw new Error('User not authenticated');
 	}
+	const listId = await ensurePersonalList();
 
 	// Find the current Hero Task (if any).
 	const { data, error: fetchError } = await supabase
 		.from('tasks')
 		.select('task_id')
-		.eq('user_id', user.id)
+		.eq('list_id', listId)
 		.eq('status', 'pending')
 		.eq('is_focus', true);
 
@@ -305,7 +312,7 @@ export async function setHeroTask(taskId: string): Promise<string | null> {
 				.from('tasks')
 				.update({ is_focus: false })
 				.eq('task_id', previousHero)
-				.eq('user_id', user.id)
+				.eq('list_id', listId)
 		);
 	}
 
@@ -314,7 +321,7 @@ export async function setHeroTask(taskId: string): Promise<string | null> {
 			.from('tasks')
 			.update({ is_focus: true })
 			.eq('task_id', taskId)
-			.eq('user_id', user.id)
+			.eq('list_id', listId)
 	);
 
 	const results = await Promise.all(updates);
@@ -451,6 +458,7 @@ export async function undoCompleteTask(
 	taskId: string,
 	wasHero: boolean
 ): Promise<void> {
+	const listId = await ensurePersonalList();
 	const restore: Record<string, unknown> = {
 		status: 'pending',
 		completed_date: null,
@@ -464,7 +472,8 @@ export async function undoCompleteTask(
 			.from('tasks')
 			.select('task_id')
 			.eq('status', 'pending')
-			.eq('is_focus', true);
+			.eq('is_focus', true)
+			.eq('list_id', listId);
 
 		if (fetchError) {
 			console.error(
@@ -479,7 +488,8 @@ export async function undoCompleteTask(
 			const { error: demoteError } = await supabase
 				.from('tasks')
 				.update({ is_focus: false })
-				.eq('task_id', currentHero);
+				.eq('task_id', currentHero)
+				.eq('list_id', listId);
 			if (demoteError) {
 				console.error(
 					'Failed to demote hero for undo:',
@@ -494,7 +504,8 @@ export async function undoCompleteTask(
 	const { error } = await supabase
 		.from('tasks')
 		.update(restore)
-		.eq('task_id', taskId);
+		.eq('task_id', taskId)
+		.eq('list_id', listId);
 	if (error) {
 		console.error('Failed to undo task completion:', error.message);
 		throw error;

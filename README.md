@@ -123,7 +123,11 @@ create unique index profiles_username_lower_unique
 alter publication supabase_realtime add table profiles;
 ```
 
-Apply the username uniqueness migration in `supabase/migrations` to the Supabase database. Resolve any existing duplicate usernames (case-insensitive) before applying it. Account creation stores a normalized username in Auth metadata; the database profile-creation trigger must copy it into `public.profiles.username` for the unique index to enforce it.
+The deployed Supabase database has a case-insensitive unique index on `profiles.username`. Account creation stores a normalized username in Auth metadata; the database profile-creation trigger must copy it into `public.profiles.username` for the index to enforce uniqueness.
+
+### Collaborative List Actions
+
+Collaborative-list actions require deployed Supabase RPCs for task creation and username invitations, plus task row-level security policies that allow list owners and members to select, insert, update, and delete tasks. These database definitions are managed in Supabase and are not stored in this repository. The already-deployed username unique index is required for case-insensitive username lookup.
 
 ---
 

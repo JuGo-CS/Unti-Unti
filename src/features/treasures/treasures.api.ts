@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabase';
 import { getCategoryIconName } from '@/utils/category-icon';
+import { ensurePersonalList } from '@/features/lists/lists.api';
 import {
 	TreasureLog,
 	TreasureGroup,
@@ -86,10 +87,12 @@ function toTreasureLog(row: CompletedTaskRow): TreasureLog {
  * `tasks` table for history, and are grouped here by their `completed_date`.
  */
 export async function fetchTreasureGroups(): Promise<TreasureGroup[]> {
+	const listId = await ensurePersonalList();
 	const { data, error } = await supabase
 		.from('tasks')
 		.select('*, categories(emoji_holder)')
 		.eq('status', 'completed')
+		.eq('list_id', listId)
 		.not('completed_date', 'is', null)
 		.order('completed_date', { ascending: false })
 		.order('completed_time', { ascending: false });

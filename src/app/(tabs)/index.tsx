@@ -762,6 +762,10 @@ export default function HomeScreen() {
 					loading={collaborativeListsLoading}
 					error={collaborativeListsError}
 					onRetry={refreshCollaborativeLists}
+					onActionComplete={(message) => {
+						setToast({ message });
+						emitTaskDataChanged();
+					}}
 				/>
 			</ScrollView>
 

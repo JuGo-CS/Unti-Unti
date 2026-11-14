@@ -5,6 +5,7 @@ const PERSONAL_LIST_TITLE = 'Personal To-Do List';
 export interface CollaborativeListTask {
 	id: string;
 	title: string;
+	description: string | null;
 	status: string;
 	position: number | null;
 	createdAt: string;
@@ -14,12 +15,35 @@ export interface CollaborativeListSummary {
 	id: string;
 	title: string;
 	description: string | null;
+	isOwner: boolean;
 	tasks: CollaborativeListTask[];
 }
 
 export interface CreateCollaborativeListInput {
 	title: string;
 	description: string | null;
+}
+
+export interface CreateCollaborativeTaskInput {
+	title: string;
+	description: string | null;
+}
+
+export interface UpdateCollaborativeTaskInput {
+	title: string;
+	description: string | null;
+}
+
+function todayDateString(): string {
+	const now = new Date();
+	const year = now.getFullYear();
+	const month = String(now.getMonth() + 1).padStart(2, '0');
+	const day = String(now.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+}
+
+function nowTimeString(): string {
+	return new Date().toTimeString().slice(0, 8);
 }
 
 export async function createCollaborativeList(
@@ -51,6 +75,143 @@ export async function createCollaborativeList(
 	}
 }
 
+export async function createCollaborativeTask(
+	listId: string,
+	input: CreateCollaborativeTaskInput
+): Promise<void> {
+	const { error } = await supabase.rpc('create_collaborative_task', {
+		target_list_id: listId,
+		target_task_title: input.title,
+		target_task_description: input.description,
+	});
+
+	if (error) {
+		console.error('Failed to create collaborative task:', error.message);
+		if (error.code === '42501') {
+			throw new Error('You do not have access to add tasks to this list.');
+		}
+		if (error.code === 'P0002') {
+			throw new Error('This collaborative list could not be found.');
+		}
+		throw new Error('Could not add the task. Please try again.');
+	}
+}
+
+export async function updateCollaborativeTask(
+	listId: string,
+	taskId: string,
+	input: UpdateCollaborativeTaskInput
+): Promise<void> {
+	const { data, error } = await supabase
+		.from('tasks')
+		.update({
+			title: input.title.trim(),
+			description: input.description?.trim() || null,
+		})
+		.eq('task_id', taskId)
+		.eq('list_id', listId)
+		.select('task_id')
+		.maybeSingle();
+
+	if (error) {
+		console.error('Failed to update collaborative task:', error.message);
+		throw error;
+	}
+	if (!data) {
+		const missingTaskError = new Error(
+			'Task could not be updated. It may have been deleted or you may not have access.'
+		);
+		console.error(missingTaskError.message);
+		throw missingTaskError;
+	}
+}
+
+export async function setCollaborativeTaskStatus(
+	listId: string,
+	taskId: string,
+	status: 'completed' | 'pending'
+): Promise<void> {
+	const completed = status === 'completed';
+	const { data, error } = await supabase
+		.from('tasks')
+		.update({
+			status,
+			completed_date: completed ? todayDateString() : null,
+			completed_time: completed ? nowTimeString() : null,
+			is_focus: false,
+		})
+		.eq('task_id', taskId)
+		.eq('list_id', listId)
+		.select('task_id')
+		.maybeSingle();
+
+	if (error) {
+		console.error('Failed to update collaborative task status:', error.message);
+		throw error;
+	}
+	if (!data) {
+		const missingTaskError = new Error(
+			'Task status could not be changed. It may have been deleted or you may not have access.'
+		);
+		console.error(missingTaskError.message);
+		throw missingTaskError;
+	}
+}
+
+export async function deleteCollaborativeTask(
+	listId: string,
+	taskId: string
+): Promise<void> {
+	const { data, error } = await supabase
+		.from('tasks')
+		.delete()
+		.eq('task_id', taskId)
+		.eq('list_id', listId)
+		.select('task_id')
+		.maybeSingle();
+
+	if (error) {
+		console.error('Failed to delete collaborative task:', error.message);
+		throw error;
+	}
+	if (!data) {
+		const missingTaskError = new Error(
+			'Task could not be deleted. It may have already been removed or you may not have access.'
+		);
+		console.error(missingTaskError.message);
+		throw missingTaskError;
+	}
+}
+
+export async function addCollaboratorByUsername(
+	listId: string,
+	username: string
+): Promise<boolean> {
+	const { data, error } = await supabase.rpc(
+		'add_collaborator_by_username',
+		{
+			target_list_id: listId,
+			target_username: username.trim().toLowerCase(),
+		}
+	);
+
+	if (error) {
+		console.error('Failed to add collaborative-list member:', error.message);
+		if (error.code === '42501') {
+			throw new Error('Only the list creator can add members.');
+		}
+		if (error.code === 'P0002') {
+			throw new Error('No account exists with that username.');
+		}
+		if (error.code === '22023') {
+			throw new Error(error.message);
+		}
+		throw new Error('Could not add that user. Please try again.');
+	}
+
+	return data;
+}
+
 /**
  * Fetch collaborative lists visible to the signed-in user and their tasks.
  * Row-level security on both tables controls which lists and tasks are returned.
@@ -58,9 +219,22 @@ export async function createCollaborativeList(
 export async function fetchCollaborativeLists(): Promise<
 	CollaborativeListSummary[]
 > {
+	const {
+		data: { user },
+		error: userError,
+	} = await supabase.auth.getUser();
+
+	if (userError) {
+		console.error('Failed to get current user:', userError.message);
+		throw userError;
+	}
+	if (!user) {
+		throw new Error('User not authenticated');
+	}
+
 	const { data: lists, error: listsError } = await supabase
 		.from('lists')
-		.select('list_id, title, description')
+		.select('list_id, title, description, owner_id')
 		.eq('is_collaborative', true)
 		.order('created_at', { ascending: true });
 
@@ -75,7 +249,9 @@ export async function fetchCollaborativeLists(): Promise<
 	const listIds = visibleLists.map((list) => list.list_id);
 	const { data: tasks, error: tasksError } = await supabase
 		.from('tasks')
-		.select('task_id, list_id, title, status, position, created_at')
+		.select(
+			'task_id, list_id, title, description, status, position, created_at'
+		)
 		.in('list_id', listIds)
 		.order('position', { ascending: true, nullsFirst: false })
 		.order('created_at', { ascending: true });
@@ -92,6 +268,7 @@ export async function fetchCollaborativeLists(): Promise<
 		listTasks.push({
 			id: task.task_id,
 			title: task.title,
+			description: task.description,
 			status: task.status,
 			position: task.position,
 			createdAt: task.created_at,
@@ -103,6 +280,7 @@ export async function fetchCollaborativeLists(): Promise<
 		id: list.list_id,
 		title: list.title,
 		description: list.description,
+		isOwner: list.owner_id === user.id,
 		tasks: tasksByList.get(list.list_id) ?? [],
 	}));
 }
