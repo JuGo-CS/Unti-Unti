@@ -17,6 +17,40 @@ export interface CollaborativeListSummary {
 	tasks: CollaborativeListTask[];
 }
 
+export interface CreateCollaborativeListInput {
+	title: string;
+	description: string | null;
+}
+
+export async function createCollaborativeList(
+	input: CreateCollaborativeListInput
+): Promise<void> {
+	const {
+		data: { user },
+		error: userError,
+	} = await supabase.auth.getUser();
+
+	if (userError) {
+		console.error('Failed to get current user:', userError.message);
+		throw userError;
+	}
+	if (!user) {
+		throw new Error('User not authenticated');
+	}
+
+	const { error } = await supabase.from('lists').insert({
+		owner_id: user.id,
+		title: input.title,
+		description: input.description,
+		is_collaborative: true,
+	});
+
+	if (error) {
+		console.error('Failed to create collaborative list:', error.message);
+		throw error;
+	}
+}
+
 /**
  * Fetch collaborative lists visible to the signed-in user and their tasks.
  * Row-level security on both tables controls which lists and tasks are returned.

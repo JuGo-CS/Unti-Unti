@@ -166,12 +166,13 @@ export default function TabsLayout() {
 					setToast({ message: 'Task added successfully!' });
 					emitTaskDataChanged();
 				}}
-				onHabitSaved={() => {
-					setToast({ message: 'Habit added successfully!' });
+				onCollaborativeListSaved={() => {
+					setToast({ message: 'Collaborative list created!' });
+					emitTaskDataChanged();
 				}}
 			/>
 
-			{/* Success toast — shown only after a task save succeeds. */}
+			{/* Success toast for task and collaborative-list creation. */}
 			<Toast toast={toast} onDismiss={() => setToast(null)} />
 		</View>
 	);

@@ -13,7 +13,7 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Category } from '@/features/treasures/treasures.types';
 import { createTask } from '@/features/tasks/tasks.api';
-import { createHabit } from '@/features/habits/habits.api';
+import { createCollaborativeList } from '@/features/lists/lists.api';
 import WinsCalendarModal from '@/components/wins_components/wins-calendar-modal';
 import { triggerHaptic } from '@/utils/haptics';
 
@@ -22,10 +22,10 @@ interface AddModalProps {
 	onClose: () => void;
 	/** Called after a successful save so the parent can refresh its data. */
 	onSaved?: () => void;
-	/** Called only after a successful TASK save (not habits). */
+	/** Called only after a successful task save. */
 	onTaskSaved?: () => void;
-	/** Called only after a successful HABIT save (not tasks). */
-	onHabitSaved?: () => void;
+	/** Called only after a successful collaborative-list save. */
+	onCollaborativeListSaved?: () => void;
 }
 
 // Priority options for the task form.
@@ -67,14 +67,14 @@ function todayDateString(): string {
 	return `${year}-${month}-${day}`;
 }
 
-// A modal to add a new Task or Daily Habit. Starts with a choice, then shows the
-// appropriate form. Saving is disabled until required fields are filled.
+// A modal to add a task or collaborative list. Starts with a choice, then shows
+// the appropriate form. Saving is disabled until required fields are filled.
 export default function AddModal({
 	visible,
 	onClose,
 	onSaved,
 	onTaskSaved,
-	onHabitSaved,
+	onCollaborativeListSaved,
 }: AddModalProps) {
 	// Haptic feedback for modal open and close
 	useEffect(() => {
@@ -85,7 +85,9 @@ export default function AddModal({
 		}
 	}, [visible]);
 
-	const [step, setStep] = useState<'choose' | 'task' | 'habit'>('choose');
+	const [step, setStep] = useState<
+		'choose' | 'task' | 'collaborative-list'
+	>('choose');
 	const [categories, setCategories] = useState<Category[]>([]);
 
 	// Task form state.
@@ -96,9 +98,9 @@ export default function AddModal({
 	const [priority, setPriority] = useState('medium');
 	const [deadlinePickerVisible, setDeadlinePickerVisible] = useState(false);
 
-	// Habit form state.
-	const [habitTitle, setHabitTitle] = useState('');
-	const [habitCatId, setHabitCatId] = useState<string | null>(null);
+	// Collaborative-list form state.
+	const [listTitle, setListTitle] = useState('');
+	const [listDescription, setListDescription] = useState('');
 
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -136,8 +138,8 @@ export default function AddModal({
 		setCatId(null);
 		setDeadline('');
 		setPriority('medium');
-		setHabitTitle('');
-		setHabitCatId(null);
+		setListTitle('');
+		setListDescription('');
 		setError(null);
 		setTitleError(null);
 		setDescriptionError(null);
@@ -145,7 +147,7 @@ export default function AddModal({
 		onClose();
 	};
 
-	const canSaveHabit = habitTitle.trim().length > 0;
+	const canSaveCollaborativeList = listTitle.trim().length > 0;
 
 	const handleSaveTask = () => {
 		if (saving) return;
@@ -198,36 +200,41 @@ export default function AddModal({
 			.finally(() => setSaving(false));
 	};
 
-	const handleSaveHabit = () => {
-		if (!canSaveHabit || saving) return;
-		// Reset errors
+	const handleSaveCollaborativeList = () => {
+		if (saving) return;
 		setError(null);
-		setTitleError(null); // for habit title
+		setTitleError(null);
+		setDescriptionError(null);
 
-		// Validate habit title
-		const trimmedHabitTitle = habitTitle.trim();
-		if (trimmedHabitTitle.length === 0) {
-			setTitleError('Please enter a habit title before saving.');
+		const trimmedTitle = listTitle.trim();
+		if (!trimmedTitle) {
+			setTitleError('Please enter a list name before saving.');
 			return;
 		}
-		if (trimmedHabitTitle.length > 100) {
-			setTitleError('Habit title must be 100 characters or less.');
+		if (trimmedTitle.length > 100) {
+			setTitleError('List name must be 100 characters or less.');
+			return;
+		}
+		if (listDescription.trim().length > 500) {
+			setDescriptionError('Description must be 500 characters or less.');
 			return;
 		}
 
 		setSaving(true);
-		createHabit({
-			title: trimmedHabitTitle,
-			cat_id: habitCatId,
+		createCollaborativeList({
+			title: trimmedTitle,
+			description: listDescription.trim() || null,
 		})
 			.then(() => {
 				onSaved?.();
-				onHabitSaved?.();
+				onCollaborativeListSaved?.();
 				handleClose();
 			})
 			.catch((err) => {
-				setError('Could not save the habit. Please try again.');
-				console.error('Failed to create habit:', err);
+				setError(
+					'Could not create the collaborative list. Please try again.'
+				);
+				console.error('Failed to create collaborative list:', err);
 			})
 			.finally(() => setSaving(false));
 	};
@@ -261,7 +268,7 @@ export default function AddModal({
 									? 'Add New'
 									: step === 'task'
 										? 'New Task'
-										: 'New Habit'}
+										: 'New Collaborative List'}
 							</Text>
 							<TouchableOpacity
 								onPress={handleClose}
@@ -314,23 +321,25 @@ export default function AddModal({
 									</TouchableOpacity>
 
 									<TouchableOpacity
-										onPress={() => setStep('habit')}
+										onPress={() =>
+											setStep('collaborative-list')
+										}
 										activeOpacity={0.85}
 										className="flex-row items-center bg-bgCardBg rounded-2xl p-4 border border-white/50"
 									>
-										<View className="bg-habitCard/60 rounded-xl p-3 mr-4">
+										<View className="bg-focusHero/15 rounded-xl p-3 mr-4">
 											<Ionicons
-												name="repeat-outline"
+												name="people-outline"
 												size={26}
 												color="#7D6E6B"
 											/>
 										</View>
 										<View className="flex-1">
 											<Text className="text-lg font-fredoka-bold text-deepBrown">
-												Daily Habit
+												Collaborative Lists
 											</Text>
 											<Text className="text-sm font-fredoka text-mutedBrown mt-0.5">
-												Add a little habit to repeat
+												Create a list to share with others
 											</Text>
 										</View>
 										<Ionicons
@@ -550,9 +559,9 @@ export default function AddModal({
 									</TouchableOpacity>
 								</View>
 							) : (
-								/* Habit form */
+								/* Collaborative-list form */
 								<View>
-									{/* Back button for habit form */}
+									{/* Back button for collaborative-list form */}
 									<TouchableOpacity
 										onPress={() => setStep('choose')}
 										activeOpacity={0.7}
@@ -569,66 +578,47 @@ export default function AddModal({
 									</TouchableOpacity>
 
 									<Text className="text-sm font-fredoka-semibold text-mutedBrown mb-2">
-										Title
+										List name
 									</Text>
 									<TextInput
-										value={habitTitle}
-										onChangeText={setHabitTitle}
-										placeholder="e.g. Read a book"
+										value={listTitle}
+										onChangeText={(text) => {
+											setListTitle(text);
+											if (titleError) setTitleError(null);
+										}}
+										placeholder="e.g. Weekend plans"
 										placeholderTextColor="#7D6E6B"
-										className="bg-bgCardBg rounded-xl px-4 py-3 text-base font-fredoka text-deepBrown mb-4"
+										maxLength={100}
+										className="bg-bgCardBg rounded-xl px-4 py-3 text-base font-fredoka text-deepBrown mb-2"
 									/>
 									{titleError && (
-										<Text className="text-sm font-fredoka text-[#C0392B] mb-2">
+										<Text className="text-sm font-fredoka text-[#C0392B] mb-4">
 											{titleError}
 										</Text>
 									)}
 
 									<Text className="text-sm font-fredoka-semibold text-mutedBrown mb-2">
-										Category
+										Description (optional)
 									</Text>
-									<View className="flex-row flex-wrap mb-4">
-										{categories.length === 0 ? (
-											<Text className="text-sm font-fredoka text-mutedBrown">
-												No categories available.
-											</Text>
-										) : (
-											categories.map((cat) => {
-												const selected =
-													cat.cat_id === habitCatId;
-												return (
-													<TouchableOpacity
-														key={cat.cat_id}
-														onPress={() =>
-															setHabitCatId(
-																selected
-																	? null
-																	: cat.cat_id
-															)
-														}
-														activeOpacity={0.7}
-														className={`flex-row items-center px-3 py-2 rounded-xl mr-2 mb-2 ${
-															selected
-																? 'bg-focusHero'
-																: 'bg-bgCardBg'
-														}`}
-													>
-														<Ionicons
-															name={cat.iconName}
-															size={16}
-															color={selected ? '#FFFFFF' : '#3D2E2B'}
-															style={{ marginRight: 4 }}
-														/>
-														<Text
-															className={`font-fredoka-semibold ${selected ? 'text-white' : 'text-deepBrown'}`}
-														>
-															{cat.cat_name}
-														</Text>
-													</TouchableOpacity>
-												);
-											})
-										)}
-									</View>
+									<TextInput
+										value={listDescription}
+										onChangeText={(text) => {
+											setListDescription(text);
+											if (descriptionError) {
+												setDescriptionError(null);
+											}
+										}}
+										placeholder="What is this list for?"
+										placeholderTextColor="#7D6E6B"
+										multiline
+										maxLength={500}
+										className="bg-bgCardBg rounded-xl px-4 py-3 text-base font-fredoka text-deepBrown mb-2 min-h-[70px]"
+									/>
+									{descriptionError && (
+										<Text className="text-sm font-fredoka text-[#C0392B] mb-3">
+											{descriptionError}
+										</Text>
+									)}
 
 									{/* Error message */}
 									{error && (
@@ -639,11 +629,13 @@ export default function AddModal({
 
 									{/* Save button */}
 									<TouchableOpacity
-										onPress={handleSaveHabit}
+										onPress={handleSaveCollaborativeList}
 										activeOpacity={0.85}
-										disabled={!canSaveHabit || saving}
+										disabled={
+											!canSaveCollaborativeList || saving
+										}
 										className={`mt-2 rounded-xl py-4 items-center justify-center bg-focusHero shadow-sm ${
-											!canSaveHabit || saving
+											!canSaveCollaborativeList || saving
 												? 'opacity-60'
 												: ''
 										}`}
@@ -651,7 +643,7 @@ export default function AddModal({
 										<Text className="text-lg font-fredoka-bold text-white">
 											{saving
 												? 'Saving...'
-												: 'Save Habit'}
+												: 'Create Collaborative List'}
 										</Text>
 									</TouchableOpacity>
 								</View>
