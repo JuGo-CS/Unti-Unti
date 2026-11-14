@@ -22,7 +22,9 @@ import HeroCard from '@/components/index_components/hero-card';
 import OtherTasks, {
 	OtherTasksHeader,
 } from '@/components/index_components/other-tasks';
-import CollaborativeLists from '@/components/index_components/collaborative-lists';
+import CollaborativeLists, {
+	CollaborativeListsHeader,
+} from '@/components/index_components/collaborative-lists';
 import { TaskItemData } from '@/components/index_components/task-item';
 import Toast, { ToastData } from '@/components/ui/toast';
 import EditTreasureModal from '@/components/wins_components/edit-treasure-modal';
@@ -120,6 +122,8 @@ export default function HomeScreen() {
 	const [collaborativeListsLoading, setCollaborativeListsLoading] =
 		useState(true);
 	const [collaborativeListsError, setCollaborativeListsError] =
+		useState(false);
+	const [collaborativeSectionExpanded, setCollaborativeSectionExpanded] =
 		useState(false);
 
 	// Whether the "Other tasks" queue is expanded.
@@ -683,9 +687,11 @@ export default function HomeScreen() {
 			</View>
 
 			{/* Main content scrolls so the focus card and task header move away naturally. */}
+			{/* Three fixed wrapper views before the collaborative header keep its sticky index stable. */}
 			<ScrollView
 				className="flex-1"
 				showsVerticalScrollIndicator={false}
+				stickyHeaderIndices={[3]}
 				contentContainerStyle={{ paddingBottom: 120 }}
 				refreshControl={
 					<RefreshControl
@@ -729,40 +735,58 @@ export default function HomeScreen() {
 				</View>
 
 				{/* Other tasks title + sort + edit button */}
-				{!tasksLoading && !taskError && otherTasks.length > 0 && (
-					<View className="mt-8">
+				<View
+					className={
+						!tasksLoading && !taskError && otherTasks.length > 0
+							? 'mt-8'
+							: ''
+					}
+				>
+					{!tasksLoading && !taskError && otherTasks.length > 0 && (
 						<OtherTasksHeader
 							editMode={editMode}
 							onToggleEdit={handleToggleEdit}
 							sortCriteria={sortCriteria}
 							onChangeSort={handleChangeSort}
 						/>
-					</View>
-				)}
+					)}
+				</View>
 
 				{/* Other tasks — stacked queue preview with expand/collapse */}
-				{!tasksLoading && !taskError && (
-					<OtherTasks
-						tasks={otherTasks}
-						onToggleTask={handleToggleTask}
-						expanded={otherTasksExpanded}
-						onToggleExpanded={() =>
-							setOtherTasksExpanded((prev) => !prev)
-						}
-						editMode={editMode}
-						sortCriteria={sortCriteria}
-						onMakeHero={handleMakeHero}
-						onReorder={handleReorder}
-						onEdit={handleEditTask}
-						onDelete={handleDeleteTask}
-					/>
-				)}
+				<View>
+					{!tasksLoading && !taskError && (
+						<OtherTasks
+							tasks={otherTasks}
+							onToggleTask={handleToggleTask}
+							expanded={otherTasksExpanded}
+							onToggleExpanded={() =>
+								setOtherTasksExpanded((prev) => !prev)
+							}
+							editMode={editMode}
+							sortCriteria={sortCriteria}
+							onMakeHero={handleMakeHero}
+							onReorder={handleReorder}
+							onEdit={handleEditTask}
+							onDelete={handleDeleteTask}
+						/>
+					)}
+				</View>
 
+				<CollaborativeListsHeader
+					lists={collaborativeLists}
+					loading={collaborativeListsLoading}
+					error={collaborativeListsError}
+					expanded={collaborativeSectionExpanded}
+					onToggle={() =>
+						setCollaborativeSectionExpanded((expanded) => !expanded)
+					}
+				/>
 				<CollaborativeLists
 					lists={collaborativeLists}
 					loading={collaborativeListsLoading}
 					error={collaborativeListsError}
 					onRetry={refreshCollaborativeLists}
+					expanded={collaborativeSectionExpanded}
 					onActionComplete={(message) => {
 						setToast({ message });
 						emitTaskDataChanged();

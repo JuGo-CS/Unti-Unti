@@ -398,7 +398,7 @@ export default function CollaborativeListCard({
 								<TouchableOpacity
 									onPress={onToggleExpanded}
 									activeOpacity={0.7}
-									className="mb-2 flex-row items-center justify-center rounded-xl py-2"
+									className="mb-2 flex-row items-end justify-end rounded-xl py-2"
 								>
 									<Text className="font-fredoka-semibold text-deepBrown underline">
 										{expanded
