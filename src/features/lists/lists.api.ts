@@ -11,12 +11,21 @@ export interface CollaborativeListTask {
 	createdAt: string;
 }
 
+export interface CollaborativeListMember {
+	id: string;
+	userId: string;
+	username: string | null;
+	displayName: string | null;
+	addedAt: string;
+}
+
 export interface CollaborativeListSummary {
 	id: string;
 	title: string;
 	description: string | null;
 	isOwner: boolean;
 	tasks: CollaborativeListTask[];
+	members: CollaborativeListMember[];
 }
 
 export interface CreateCollaborativeListInput {
@@ -293,29 +302,94 @@ export async function addCollaboratorByUsername(
 	listId: string,
 	username: string
 ): Promise<boolean> {
+	const normalizedUsername = username.trim().toLowerCase();
+	const {
+		data: { user },
+		error: userError,
+	} = await supabase.auth.getUser();
+
+	if (userError) {
+		console.error('Failed to get current user:', userError.message);
+		throw userError;
+	}
+	if (!user) {
+		throw new Error('User not authenticated');
+	}
+
+	const creatorUsername = user.user_metadata?.username;
+	if (
+		typeof creatorUsername === 'string' &&
+		creatorUsername.trim().toLowerCase() === normalizedUsername
+	) {
+		throw new Error(
+			'You cannot add yourself; you are already the creator of this list.'
+		);
+	}
+
 	const { data, error } = await supabase.rpc(
 		'add_collaborator_by_username',
 		{
 			target_list_id: listId,
-			target_username: username.trim().toLowerCase(),
+			target_username: normalizedUsername,
 		}
 	);
 
 	if (error) {
-		console.error('Failed to add collaborative-list member:', error.message);
 		if (error.code === '42501') {
+			console.error(
+				'Failed to add collaborative-list member:',
+				error.message
+			);
 			throw new Error('Only the list creator can add members.');
 		}
 		if (error.code === 'P0002') {
-			throw new Error('No account exists with that username.');
+			if (error.message.toLowerCase().includes('collaborative list')) {
+				throw new Error('This collaborative list could not be found.');
+			}
+			throw new Error(
+				'This user was not found. Check the username and confirm it is saved in their profile.'
+			);
 		}
 		if (error.code === '22023') {
-			throw new Error(error.message);
+			if (error.message.toLowerCase().includes('creator')) {
+				throw new Error(
+					'You cannot add yourself; you are already the creator of this list.'
+				);
+			}
+			throw new Error('Enter a valid username and try again.');
 		}
+		console.error('Failed to add collaborative-list member:', error.message);
 		throw new Error('Could not add that user. Please try again.');
 	}
 
 	return data;
+}
+
+export async function removeCollaborator(
+	listId: string,
+	userId: string
+): Promise<void> {
+	const { data, error } = await supabase.rpc(
+		'remove_collaborative_list_member',
+		{
+			target_list_id: listId,
+			target_user_id: userId,
+		}
+	);
+
+	if (error) {
+		console.error('Failed to remove collaborative-list member:', error.message);
+		if (error.code === '42501') {
+			throw new Error('Only the list creator can remove members.');
+		}
+		if (error.code === 'P0002') {
+			throw new Error('This member or collaborative list no longer exists.');
+		}
+		throw new Error('Could not remove this member. Please try again.');
+	}
+	if (!data) {
+		throw new Error('This user is no longer a member of the list.');
+	}
 }
 
 /**
@@ -366,6 +440,39 @@ export async function fetchCollaborativeLists(): Promise<
 		throw tasksError;
 	}
 
+	const ownedListIds = visibleLists
+		.filter((list) => list.owner_id === user.id)
+		.map((list) => list.list_id);
+	let membersByList = new Map<string, CollaborativeListMember[]>();
+
+	if (ownedListIds.length > 0) {
+		const { data: members, error: membersError } = await supabase.rpc(
+			'get_collaborative_list_members',
+			{ target_list_ids: ownedListIds }
+		);
+
+		if (membersError) {
+			console.error(
+				'Failed to fetch collaborative-list members:',
+				membersError.message
+			);
+			throw membersError;
+		}
+
+		membersByList = new Map<string, CollaborativeListMember[]>();
+		for (const member of members ?? []) {
+			const listMembers = membersByList.get(member.list_id) ?? [];
+			listMembers.push({
+				id: member.membership_id,
+				userId: member.user_id,
+				username: member.username,
+				displayName: member.display_name,
+				addedAt: member.added_at,
+			});
+			membersByList.set(member.list_id, listMembers);
+		}
+	}
+
 	const tasksByList = new Map<string, CollaborativeListTask[]>();
 	for (const task of tasks ?? []) {
 		if (!task.list_id) continue;
@@ -386,6 +493,7 @@ export async function fetchCollaborativeLists(): Promise<
 		title: list.title,
 		description: list.description,
 		isOwner: list.owner_id === user.id,
+		members: membersByList.get(list.list_id) ?? [],
 		tasks: (tasksByList.get(list.list_id) ?? []).sort((first, second) => {
 			const completionOrder =
 				Number(first.status === 'completed') -

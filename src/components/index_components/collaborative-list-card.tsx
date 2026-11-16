@@ -17,8 +17,10 @@ import {
 	deleteCollaborativeList,
 	deleteCollaborativeTask,
 	leaveCollaborativeList,
+	removeCollaborator,
 	setCollaborativeTaskStatus,
 	updateCollaborativeTask,
+	type CollaborativeListMember,
 	type CollaborativeListSummary,
 	type CollaborativeListTask,
 } from '@/features/lists/lists.api';
@@ -30,7 +32,8 @@ type ListAction =
 	| 'editTask'
 	| 'deleteTask'
 	| 'deleteList'
-	| 'leaveList';
+	| 'leaveList'
+	| 'removeMember';
 
 export default function CollaborativeListCard({
 	list,
@@ -46,9 +49,12 @@ export default function CollaborativeListCard({
 	const [action, setAction] = useState<ListAction | null>(null);
 	const [editingTask, setEditingTask] =
 		useState<CollaborativeListTask | null>(null);
+	const [memberToRemove, setMemberToRemove] =
+		useState<CollaborativeListMember | null>(null);
 	const [taskTitle, setTaskTitle] = useState('');
 	const [taskDescription, setTaskDescription] = useState('');
 	const [username, setUsername] = useState('');
+	const [membersExpanded, setMembersExpanded] = useState(false);
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [taskActionError, setTaskActionError] = useState<string | null>(null);
 	const [processingTaskIds, setProcessingTaskIds] = useState<Set<string>>(
@@ -65,9 +71,11 @@ export default function CollaborativeListCard({
 
 	const openAction = (
 		nextAction: ListAction,
-		task: CollaborativeListTask | null = null
+		task: CollaborativeListTask | null = null,
+		member: CollaborativeListMember | null = null
 	) => {
 		setEditingTask(task);
+		setMemberToRemove(member);
 		setTaskTitle(task?.title ?? '');
 		setTaskDescription(task?.description ?? '');
 		setUsername('');
@@ -80,6 +88,7 @@ export default function CollaborativeListCard({
 		Keyboard.dismiss();
 		setAction(null);
 		setEditingTask(null);
+		setMemberToRemove(null);
 	};
 
 	const closeAction = () => {
@@ -153,6 +162,35 @@ export default function CollaborativeListCard({
 					error instanceof Error
 						? error.message
 						: 'Could not leave the collaborative list. Please try again.'
+				);
+			} finally {
+				setSaving(false);
+			}
+			return;
+		}
+
+		if (action === 'removeMember') {
+			if (!list.isOwner) {
+				setActionError('Only the list creator can remove members.');
+				return;
+			}
+			if (!memberToRemove) {
+				setActionError('Select a member to remove.');
+				return;
+			}
+
+			setSaving(true);
+			try {
+				await removeCollaborator(list.id, memberToRemove.userId);
+				finishAction();
+				onActionComplete(
+					`@${memberToRemove.username ?? memberToRemove.displayName ?? 'Member'} was removed from the list.`
+				);
+			} catch (error) {
+				setActionError(
+					error instanceof Error
+						? error.message
+						: 'Could not remove this member. Please try again.'
 				);
 			} finally {
 				setSaving(false);
@@ -312,6 +350,105 @@ export default function CollaborativeListCard({
 				</View>
 
 				<View className="px-4 pb-4 pt-2">
+					{list.isOwner && (
+						<View className="mb-3 rounded-2xl bg-taskStack/35 px-3 py-2">
+							<TouchableOpacity
+								onPress={() =>
+									setMembersExpanded((expanded) => !expanded)
+								}
+								activeOpacity={0.75}
+								className="flex-row items-center justify-between py-1"
+								accessibilityRole="button"
+								accessibilityState={{
+									expanded: membersExpanded,
+								}}
+							>
+								<View className="flex-row items-center ml-1">
+									<Ionicons
+										name="people-outline"
+										size={18}
+										color="#6B8E70"
+									/>
+									<Text className="ml-3 font-fredoka-medium text-deepBrown">
+										Member/s ({list.members.length})
+									</Text>
+								</View>
+								<Ionicons
+									name={
+										membersExpanded
+											? 'chevron-up'
+											: 'chevron-down'
+									}
+									size={18}
+									color="#7D6E6B"
+								/>
+							</TouchableOpacity>
+							{membersExpanded &&
+								(list.members.length === 0 ? (
+									<Text className="pb-2 pt-1 font-fredoka text-mutedBrown">
+										No members have joined yet.
+									</Text>
+								) : (
+									list.members.map((member) => {
+										const memberLabel = member.username
+											? `@${member.username}`
+											: (member.displayName ??
+												'Unnamed member');
+										return (
+											<View
+												key={member.id}
+												className="mt-1 flex-row items-center justify-between rounded-xl bg-white/70 px-3 py-2 mb-1"
+											>
+												<View className="mr-3 flex-1">
+													<Text
+														numberOfLines={1}
+														className="font-fredoka-medium text-deepBrown"
+													>
+														{memberLabel}
+													</Text>
+													{member.username &&
+														member.displayName && (
+															<Text
+																numberOfLines={
+																	1
+																}
+																className="font-fredoka text-xs text-mutedBrown"
+															>
+																{
+																	member.displayName
+																}
+															</Text>
+														)}
+												</View>
+												<TouchableOpacity
+													onPress={() =>
+														openAction(
+															'removeMember',
+															null,
+															member
+														)
+													}
+													activeOpacity={0.7}
+													className="flex-row items-center rounded-lg border border-[#C0392B]/20 px-2.5 py-1.5"
+													accessibilityRole="button"
+													accessibilityLabel={`Remove ${memberLabel} from list`}
+												>
+													<Ionicons
+														name="person-remove-outline"
+														size={15}
+														color="#C0392B"
+													/>
+													<Text className="ml-1 font-fredoka-semibold text-xs text-[#C0392B]">
+														Remove
+													</Text>
+												</TouchableOpacity>
+											</View>
+										);
+									})
+								))}
+						</View>
+					)}
+
 					{list.tasks.length === 0 ? (
 						<View className="items-center rounded-2xl bg-taskStack/50 px-4 py-5">
 							<Ionicons
@@ -452,27 +589,11 @@ export default function CollaborativeListCard({
 					) : null}
 
 					<View className="mt-2 flex-row">
-						<TouchableOpacity
-							onPress={() => openAction('task')}
-							activeOpacity={0.8}
-							className={`flex-1 flex-row items-center justify-center rounded-xl bg-focusHero py-3 ${
-								list.isOwner ? 'mr-2' : ''
-							}`}
-						>
-							<Ionicons
-								name="add-circle-outline"
-								size={18}
-								color="#FFFFFF"
-							/>
-							<Text className="ml-1.5 font-fredoka-semibold text-white">
-								Add task
-							</Text>
-						</TouchableOpacity>
 						{list.isOwner && (
 							<TouchableOpacity
 								onPress={() => openAction('member')}
 								activeOpacity={0.8}
-								className="flex-1 flex-row items-center justify-center rounded-xl border border-focusHero/30 bg-white py-3"
+								className="mr-2 flex-1 flex-row items-center justify-center rounded-xl border border-focusHero/30 bg-white py-3"
 							>
 								<Ionicons
 									name="person-add-outline"
@@ -484,6 +605,20 @@ export default function CollaborativeListCard({
 								</Text>
 							</TouchableOpacity>
 						)}
+						<TouchableOpacity
+							onPress={() => openAction('task')}
+							activeOpacity={0.8}
+							className="flex-1 flex-row items-center justify-center rounded-xl bg-focusHero py-3"
+						>
+							<Ionicons
+								name="add-circle-outline"
+								size={18}
+								color="#FFFFFF"
+							/>
+							<Text className="ml-1.5 font-fredoka-semibold text-white">
+								Add task
+							</Text>
+						</TouchableOpacity>
 					</View>
 					{list.isOwner && (
 						<TouchableOpacity
@@ -548,7 +683,9 @@ export default function CollaborativeListCard({
 													? 'Delete task?'
 													: action === 'deleteList'
 														? 'Delete collaborative list?'
-														: 'Leave collaborative list?'}
+															: action === 'leaveList'
+																? 'Leave collaborative list?'
+																: 'Remove member?'}
 								</Text>
 							</View>
 							<TouchableOpacity
@@ -621,7 +758,10 @@ export default function CollaborativeListCard({
 									</Text>
 									<TextInput
 										value={username}
-										onChangeText={setUsername}
+										onChangeText={(value) => {
+											setUsername(value);
+											setActionError(null);
+										}}
 										placeholder="username"
 										placeholderTextColor="#7D6E6B"
 										autoCapitalize="none"
@@ -631,6 +771,18 @@ export default function CollaborativeListCard({
 										className="flex-1 py-3 pl-1 font-fredoka text-deepBrown"
 									/>
 								</View>
+								{actionError && (
+									<View className="mb-3 flex-row items-start rounded-xl bg-[#C0392B]/10 px-3 py-2.5">
+										<Ionicons
+											name="alert-circle-outline"
+											size={18}
+											color="#C0392B"
+										/>
+										<Text className="ml-2 flex-1 font-fredoka text-[#C0392B]">
+											{actionError}
+										</Text>
+									</View>
+								)}
 							</>
 						) : action === 'deleteTask' ? (
 							<View className="mb-4 rounded-2xl bg-[#C0392B]/10 px-4 py-4">
@@ -650,7 +802,7 @@ export default function CollaborativeListCard({
 									This permanently deletes the collaborative list, its tasks, and its members.
 								</Text>
 							</View>
-						) : (
+						) : action === 'leaveList' ? (
 							<View className="mb-4 rounded-2xl bg-[#C0392B]/10 px-4 py-4">
 								<Text className="font-fredoka-semibold text-deepBrown">
 									{list.title}
@@ -659,9 +811,21 @@ export default function CollaborativeListCard({
 									You will lose access to this list and its tasks. The list and its other members will not be deleted.
 								</Text>
 							</View>
+						) : (
+							<View className="mb-4 rounded-2xl bg-[#C0392B]/10 px-4 py-4">
+								<Text className="font-fredoka-semibold text-deepBrown">
+									{memberToRemove?.username
+										? `@${memberToRemove.username}`
+										: (memberToRemove?.displayName ??
+											'This member')}
+								</Text>
+								<Text className="mt-1 font-fredoka text-mutedBrown">
+									This person will lose access to this collaborative list and its tasks.
+								</Text>
+							</View>
 						)}
 
-						{actionError && (
+						{actionError && action !== 'member' && (
 							<Text className="mb-3 font-fredoka text-[#C0392B]">
 								{actionError}
 							</Text>
@@ -674,7 +838,8 @@ export default function CollaborativeListCard({
 							className={`items-center justify-center rounded-xl py-3.5 ${
 								action === 'deleteTask' ||
 								action === 'deleteList' ||
-								action === 'leaveList'
+								action === 'leaveList' ||
+								action === 'removeMember'
 									? 'bg-[#C0392B]'
 									: 'bg-focusHero'
 							} ${
@@ -695,13 +860,16 @@ export default function CollaborativeListCard({
 														? 'Delete task'
 														: action === 'deleteList'
 															? 'Delete list'
-															: 'Leave list'}
+															: action === 'leaveList'
+																? 'Leave list'
+																: 'Remove member'}
 								</Text>
 							)}
 						</TouchableOpacity>
 						{(action === 'deleteTask' ||
 							action === 'deleteList' ||
-							action === 'leaveList') && (
+							action === 'leaveList' ||
+							action === 'removeMember') && (
 							<TouchableOpacity
 								onPress={() => {
 									setActionError(null);
