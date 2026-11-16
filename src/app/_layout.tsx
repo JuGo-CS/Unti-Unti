@@ -11,6 +11,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import OfflineBanner from '@/components/ui/offline-banner';
 import '../../global.css';
 
 // Inner navigator that guards routes based on auth state.
@@ -38,16 +39,18 @@ function RootNavigator() {
 		}
 	}, [isLoading, session, segments, router]);
 
-	// Show loading indicator while auth state is initializing
-	if (isLoading) {
-		return (
-			<View className="flex-1 items-center justify-center bg-cozyBg">
-				<ActivityIndicator size="large" color="#3D2E2B" />
-			</View>
-		);
-	}
-
-	return <Slot />;
+	return (
+		<View className="flex-1">
+			{isLoading ? (
+				<View className="flex-1 items-center justify-center bg-cozyBg">
+					<ActivityIndicator size="large" color="#3D2E2B" />
+				</View>
+			) : (
+				<Slot />
+			)}
+			<OfflineBanner />
+		</View>
+	);
 }
 
 // Root layout: loads fonts, provides auth context, and renders the matched route.
