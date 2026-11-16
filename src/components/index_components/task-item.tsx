@@ -45,7 +45,7 @@ interface TaskItemProps {
 	onDelete?: (task: TaskItemData) => void;
 }
 
-// A single task row with an icon on the left and a checkbox on the right.
+// A single task row with a checkbox and icon on the left.
 // Titles are truncated with an ellipsis when they are too long.
 function TaskItem({
 	task,
@@ -141,25 +141,19 @@ function TaskItem({
 		<View
 			className={`flex-row items-center py-2.5 ${muted ? 'opacity-40' : ''}`}
 		>
-			{/* Task icon */}
-			<View className="bg-taskStack/40 rounded-lg p-2 mr-3">
-				<Ionicons name={task.iconName} size={20} color="#7D6E6B" />
-			</View>
-
-			{/* Truncated title */}
-			<Text
-				numberOfLines={1}
-				ellipsizeMode="tail"
-				className="flex-1 text-base font-fredoka-medium text-deepBrown"
-			>
-				{task.title}
-			</Text>
-
-			{/* Checkbox on the right */}
+			{/* Completion checkbox on the far left */}
 			<TouchableOpacity
 				onPress={() => onToggle?.(task)}
 				activeOpacity={0.7}
-				className="ml-3"
+				hitSlop={8}
+				accessibilityRole="button"
+				accessibilityLabel={
+					task.completed
+						? `Mark ${task.title} as not done`
+						: `Mark ${task.title} as done`
+				}
+				accessibilityState={{ checked: task.completed }}
+				className="mr-3"
 			>
 				<View
 					className={`w-6 h-6 rounded-md items-center justify-center border-2 ${
@@ -173,6 +167,20 @@ function TaskItem({
 					)}
 				</View>
 			</TouchableOpacity>
+
+			{/* Task icon */}
+			<View className="bg-taskStack/40 rounded-lg p-2">
+				<Ionicons name={task.iconName} size={20} color="#7D6E6B" />
+			</View>
+
+			{/* Truncated title */}
+			<Text
+				numberOfLines={1}
+				ellipsizeMode="tail"
+				className="flex-1 text-base font-fredoka-medium text-deepBrown"
+			>
+				{task.title}
+			</Text>
 		</View>
 	);
 }
