@@ -978,7 +978,7 @@ export default function CollaborativeListCard({
 				onRequestClose={closeAction}
 			>
 				<KeyboardAvoidingView
-					behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+					behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
 					className="flex-1 justify-end bg-black/50"
 				>
 					<View className="rounded-t-3xl bg-cozyBg px-5 pb-10 pt-5">
