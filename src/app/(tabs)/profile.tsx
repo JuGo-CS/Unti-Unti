@@ -21,6 +21,35 @@ import Toast, { ToastData } from '@/components/ui/toast';
 import ConfirmModal from '@/components/ui/confirm-modal';
 import { updateProfile, getProfile } from '@/dp_operations/profile/profile';
 
+function getErrorMessage(error: unknown, fallback: string): string {
+	if (
+		typeof error === 'object' &&
+		error !== null &&
+		'message' in error &&
+		typeof error.message === 'string'
+	) {
+		return error.message;
+	}
+	return fallback;
+}
+
+function isUsernameConflict(error: unknown): boolean {
+	if (typeof error !== 'object' || error === null) return false;
+	const candidate = error as {
+		code?: unknown;
+		message?: unknown;
+		details?: unknown;
+	};
+	const message =
+		`${candidate.message ?? ''} ${candidate.details ?? ''}`.toLowerCase();
+	return (
+		candidate.code === '23505' ||
+		message.includes('profiles_username_lower_unique') ||
+		(message.includes('username') &&
+			(message.includes('duplicate') || message.includes('unique')))
+	);
+}
+
 export default function ProfileScreen() {
 	const [fontsLoaded] = useFonts({
 		Fredoka_400Regular,
@@ -31,6 +60,7 @@ export default function ProfileScreen() {
 
 	const [user, setUser] = useState<User | null>(null);
 	const [username, setUsername] = useState('');
+	const [usernameInput, setUsernameInput] = useState('');
 	const [displayNameInput, setDisplayNameInput] = useState('');
 	const [newPassword, setNewPassword] = useState('');
 	const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,6 +72,7 @@ export default function ProfileScreen() {
 	const [showSignOutModal, setShowSignOutModal] = useState(false);
 
 	const [loadingName, setLoadingName] = useState(false);
+	const [loadingUsername, setLoadingUsername] = useState(false);
 	const [loadingPassword, setLoadingPassword] = useState(false);
 	const [loadingSignOut, setLoadingSignOut] = useState(false);
 
@@ -78,6 +109,7 @@ export default function ProfileScreen() {
 
 					setUserName(name || 'Friend');
 					setUsername(accountUsername);
+					setUsernameInput(accountUsername);
 					setDisplayNameInput(name);
 				}
 			} catch (error) {
@@ -160,6 +192,72 @@ export default function ProfileScreen() {
 		}
 	};
 
+	const handleUpdateUsername = async () => {
+		const normalizedUsername = usernameInput.trim().toLowerCase();
+		if (!/^[a-z0-9_]{3,30}$/.test(normalizedUsername)) {
+			setToast({
+				message:
+					'Username must be 3–30 characters and use only letters, numbers, or underscores.',
+			});
+			return;
+		}
+
+		if (normalizedUsername === username.trim().toLowerCase()) {
+			setUsernameInput(normalizedUsername);
+			setToast({ message: 'That is already your username.' });
+			return;
+		}
+
+		setLoadingUsername(true);
+		try {
+			const {
+				data: available,
+				error: availabilityError,
+			} = await supabase.rpc('is_username_available', {
+				candidate_username: normalizedUsername,
+			});
+			if (availabilityError) throw availabilityError;
+			if (!available) {
+				setToast({
+					message: 'That username is already taken. Choose another one.',
+				});
+				return;
+			}
+
+			const { error } = await updateProfile(user.id, {
+				username: normalizedUsername,
+			});
+			if (error) throw error;
+
+			const previousUsername = username;
+			setUsername(normalizedUsername);
+			setUsernameInput(normalizedUsername);
+			setUserName((currentName) =>
+				currentName === previousUsername ? normalizedUsername : currentName
+			);
+			setUser((currentUser) =>
+				currentUser
+					? {
+							...currentUser,
+							user_metadata: {
+								...currentUser.user_metadata,
+								username: normalizedUsername,
+							},
+						}
+					: null
+			);
+			setToast({ message: 'Username updated successfully!' });
+		} catch (error: unknown) {
+			setToast({
+				message: isUsernameConflict(error)
+					? 'That username is already taken. Choose another one.'
+					: getErrorMessage(error, 'Failed to update username.'),
+			});
+		} finally {
+			setLoadingUsername(false);
+		}
+	};
+
 	const handleUpdatePassword = async () => {
 		if (newPassword.length < 6) {
 			setToast({ message: 'Password must be at least 6 characters.' });
@@ -239,8 +337,10 @@ export default function ProfileScreen() {
 
 					<TouchableOpacity
 						onPress={handleUpdateDisplayName}
-						disabled={loadingName}
-						className="bg-focusHero rounded-xl py-3 items-center justify-center"
+						disabled={loadingName || loadingUsername}
+						className={`bg-focusHero rounded-xl py-3 items-center justify-center ${
+							loadingName || loadingUsername ? 'opacity-60' : ''
+						}`}
 					>
 						{loadingName ? (
 							<ActivityIndicator color="#FDFBF7" size="small" />
@@ -252,7 +352,49 @@ export default function ProfileScreen() {
 					</TouchableOpacity>
 				</View>
 
-				{/* Section 2: Password */}
+				{/* Section 2: Username */}
+				<View className="bg-bgCardBg border border-mutedBrown/20 rounded-2xl p-4 mb-5">
+					<Text className="text-lg font-fredoka-semibold text-deepBrown mb-3">
+						Username
+					</Text>
+
+					<View className="border border-mutedBrown/30 rounded-xl px-3 mb-3 bg-cozyBg flex-row items-center">
+						<Text className="font-fredoka-semibold text-mutedBrown">
+							@
+						</Text>
+						<TextInput
+							className="flex-1 px-2 py-2.5 font-fredoka text-deepBrown"
+							placeholder="username"
+							placeholderTextColor="#7D6E6B"
+							value={usernameInput}
+							onChangeText={setUsernameInput}
+							autoCapitalize="none"
+							autoCorrect={false}
+							maxLength={30}
+						/>
+					</View>
+					<Text className="font-fredoka text-xs text-mutedBrown mb-3">
+						Use 3–30 lowercase letters, numbers, or underscores.
+					</Text>
+
+					<TouchableOpacity
+						onPress={handleUpdateUsername}
+						disabled={loadingUsername || loadingName}
+						className={`bg-focusHero rounded-xl py-3 items-center justify-center ${
+							loadingUsername || loadingName ? 'opacity-60' : ''
+						}`}
+					>
+						{loadingUsername ? (
+							<ActivityIndicator color="#FDFBF7" size="small" />
+						) : (
+							<Text className="font-fredoka-bold text-cozyBg text-sm">
+								Save Username
+							</Text>
+						)}
+					</TouchableOpacity>
+				</View>
+
+				{/* Section 3: Password */}
 				<View className="bg-bgCardBg border border-mutedBrown/20 rounded-2xl p-4 mb-6">
 					<Text className="text-lg font-fredoka-semibold text-deepBrown mb-4">
 						Change Password
@@ -330,7 +472,7 @@ export default function ProfileScreen() {
 					</TouchableOpacity>
 				</View>
 
-				{/* Section 3: Sign Out Trigger */}
+				{/* Section 4: Sign Out Trigger */}
 				<TouchableOpacity
 					onPress={() => setShowSignOutModal(true)}
 					className="bg-highPriority border border-mutedBrown/30 rounded-xl py-3.5 items-center justify-center mb-6"
