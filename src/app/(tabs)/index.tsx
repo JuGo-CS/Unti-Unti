@@ -787,9 +787,17 @@ export default function HomeScreen() {
 					error={collaborativeListsError}
 					onRetry={refreshCollaborativeLists}
 					expanded={collaborativeSectionExpanded}
-					onActionComplete={(message) => {
-						setToast({ message });
-						emitTaskDataChanged();
+					onOptimisticUpdate={setCollaborativeLists}
+					onActionComplete={(message, onUndo, onExpire, showToast = true) => {
+						if (showToast) {
+							setToast({
+								message,
+								undoLabel: onUndo ? 'Undo' : undefined,
+								onUndo,
+								onExpire,
+							});
+						}
+						if (!onExpire) emitTaskDataChanged();
 					}}
 				/>
 			</ScrollView>

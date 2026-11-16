@@ -9,7 +9,17 @@ interface CollaborativeListsProps {
 	loading: boolean;
 	error: boolean;
 	onRetry: () => void;
-	onActionComplete: (message: string) => void;
+	onActionComplete: (
+		message: string,
+		onUndo?: () => void,
+		onExpire?: () => void,
+		showToast?: boolean
+	) => void;
+	onOptimisticUpdate: (
+		update: (
+			lists: CollaborativeListSummary[]
+		) => CollaborativeListSummary[]
+	) => void;
 	expanded: boolean;
 }
 
@@ -66,6 +76,7 @@ export default function CollaborativeLists({
 	error,
 	onRetry,
 	onActionComplete,
+	onOptimisticUpdate,
 	expanded,
 }: CollaborativeListsProps) {
 	const [expandedLists, setExpandedLists] = useState<Set<string>>(
@@ -122,6 +133,7 @@ export default function CollaborativeLists({
 						expanded={expandedLists.has(list.id)}
 						onToggleExpanded={() => toggleList(list.id)}
 						onActionComplete={onActionComplete}
+						onOptimisticUpdate={onOptimisticUpdate}
 					/>
 				))
 			)}

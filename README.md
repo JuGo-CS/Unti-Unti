@@ -127,7 +127,9 @@ The deployed Supabase database has a case-insensitive unique index on `profiles.
 
 ### Collaborative List Actions
 
-Collaborative-list actions require deployed Supabase RPCs for task creation, username invitations, creator-only member listing, and creator-only member removal, plus task row-level security policies that let list owners and members manage individual tasks. List members also need permission to delete only their own `list_members` row to leave a list; deleting the collaborative list itself remains creator-only. These database definitions are managed in Supabase and are not stored in this repository. The already-deployed username unique index is required for case-insensitive username lookup.
+Collaborative-list actions require deployed Supabase RPCs for username invitations, creator-only member listing, and creator-only member removal, plus task row-level security policies that let list owners and members manage individual tasks. List members also need permission to delete only their own `list_members` row to leave a list; deleting the collaborative list itself remains creator-only. These database definitions are managed in Supabase and are not stored in this repository. The already-deployed username unique index is required for case-insensitive username lookup.
+
+Collaborative-list changes appear immediately and can be undone from the Home toast. Destructive changes are finalized in Supabase when the Undo toast expires or is replaced; keep the app open during this window.
 
 ---
 

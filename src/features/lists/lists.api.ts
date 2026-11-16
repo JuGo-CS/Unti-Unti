@@ -43,6 +43,20 @@ export interface UpdateCollaborativeTaskInput {
 	description: string | null;
 }
 
+export interface CollaborativeTaskSnapshot {
+	title: string;
+	description: string | null;
+	status: string;
+	completedDate: string | null;
+	completedTime: string | null;
+	isFocus: boolean;
+}
+
+export interface AddCollaboratorResult {
+	added: boolean;
+	userId: string | null;
+}
+
 function todayDateString(): string {
 	const now = new Date();
 	const year = now.getFullYear();
@@ -87,12 +101,33 @@ export async function createCollaborativeList(
 export async function createCollaborativeTask(
 	listId: string,
 	input: CreateCollaborativeTaskInput
-): Promise<void> {
-	const { error } = await supabase.rpc('create_collaborative_task', {
-		target_list_id: listId,
-		target_task_title: input.title,
-		target_task_description: input.description,
-	});
+): Promise<string> {
+	const {
+		data: { user },
+		error: userError,
+	} = await supabase.auth.getUser();
+
+	if (userError) {
+		console.error('Failed to get current user:', userError.message);
+		throw userError;
+	}
+	if (!user) {
+		throw new Error('User not authenticated');
+	}
+
+	const { data, error } = await supabase
+		.from('tasks')
+		.insert({
+			title: input.title.trim(),
+			description: input.description?.trim() || null,
+			status: 'pending',
+			is_focus: false,
+			priority: 'medium',
+			user_id: user.id,
+			list_id: listId,
+		})
+		.select('task_id')
+		.single();
 
 	if (error) {
 		console.error('Failed to create collaborative task:', error.message);
@@ -104,13 +139,73 @@ export async function createCollaborativeTask(
 		}
 		throw new Error('Could not add the task. Please try again.');
 	}
+
+	return data.task_id;
+}
+
+async function getCollaborativeTaskSnapshot(
+	listId: string,
+	taskId: string
+): Promise<CollaborativeTaskSnapshot> {
+	const { data, error } = await supabase
+		.from('tasks')
+		.select(
+			'title, description, status, completed_date, completed_time, is_focus'
+		)
+		.eq('task_id', taskId)
+		.eq('list_id', listId)
+		.single();
+
+	if (error) {
+		console.error('Failed to read collaborative task before update:', error.message);
+		throw error;
+	}
+
+	return {
+		title: data.title,
+		description: data.description,
+		status: data.status,
+		completedDate: data.completed_date,
+		completedTime: data.completed_time,
+		isFocus: data.is_focus,
+	};
+}
+
+export async function restoreCollaborativeTask(
+	listId: string,
+	taskId: string,
+	snapshot: CollaborativeTaskSnapshot
+): Promise<void> {
+	const { data, error } = await supabase
+		.from('tasks')
+		.update({
+			title: snapshot.title,
+			description: snapshot.description,
+			status: snapshot.status,
+			completed_date: snapshot.completedDate,
+			completed_time: snapshot.completedTime,
+			is_focus: snapshot.isFocus,
+		})
+		.eq('task_id', taskId)
+		.eq('list_id', listId)
+		.select('task_id')
+		.maybeSingle();
+
+	if (error) {
+		console.error('Failed to undo collaborative task change:', error.message);
+		throw error;
+	}
+	if (!data) {
+		throw new Error('This task is no longer available to undo.');
+	}
 }
 
 export async function updateCollaborativeTask(
 	listId: string,
 	taskId: string,
 	input: UpdateCollaborativeTaskInput
-): Promise<void> {
+): Promise<CollaborativeTaskSnapshot> {
+	const snapshot = await getCollaborativeTaskSnapshot(listId, taskId);
 	const { data, error } = await supabase
 		.from('tasks')
 		.update({
@@ -133,13 +228,15 @@ export async function updateCollaborativeTask(
 		console.error(missingTaskError.message);
 		throw missingTaskError;
 	}
+	return snapshot;
 }
 
 export async function setCollaborativeTaskStatus(
 	listId: string,
 	taskId: string,
 	status: 'completed' | 'pending'
-): Promise<void> {
+): Promise<CollaborativeTaskSnapshot> {
+	const snapshot = await getCollaborativeTaskSnapshot(listId, taskId);
 	const completed = status === 'completed';
 	const { data, error } = await supabase
 		.from('tasks')
@@ -165,6 +262,7 @@ export async function setCollaborativeTaskStatus(
 		console.error(missingTaskError.message);
 		throw missingTaskError;
 	}
+	return snapshot;
 }
 
 export async function deleteCollaborativeTask(
@@ -301,7 +399,7 @@ export async function leaveCollaborativeList(
 export async function addCollaboratorByUsername(
 	listId: string,
 	username: string
-): Promise<boolean> {
+): Promise<AddCollaboratorResult> {
 	const normalizedUsername = username.trim().toLowerCase();
 	const {
 		data: { user },
@@ -362,7 +460,39 @@ export async function addCollaboratorByUsername(
 		throw new Error('Could not add that user. Please try again.');
 	}
 
-	return data;
+	const { data: members, error: membersError } = await supabase.rpc(
+		'get_collaborative_list_members',
+		{ target_list_ids: [listId] }
+	);
+
+	if (membersError) {
+		console.error(
+			'Failed to identify collaborative-list member for Undo:',
+			membersError.message
+		);
+		throw new Error(
+			data
+				? 'The user was added, but Undo could not be prepared. Refresh the list and try again.'
+				: 'Could not verify the existing member. Please try again.'
+		);
+	}
+
+	const member = members?.find(
+		(candidate: { username: string | null; user_id: string }) =>
+			candidate.username?.toLowerCase() === normalizedUsername
+	);
+	if (!member) {
+		throw new Error(
+			data
+				? 'The user was added, but their membership could not be identified for Undo.'
+				: 'Could not verify the existing member. Please try again.'
+		);
+	}
+
+	return {
+		added: data,
+		userId: data ? member.user_id : null,
+	};
 }
 
 export async function removeCollaborator(

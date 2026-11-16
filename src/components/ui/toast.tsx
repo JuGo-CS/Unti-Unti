@@ -11,6 +11,8 @@ export interface ToastData {
 	undoLabel?: string;
 	/** Called when the undo action is pressed. */
 	onUndo?: () => void;
+	/** Called when an undoable action's toast expires or is replaced. */
+	onExpire?: () => void;
 }
 
 interface ToastProps {
@@ -31,11 +33,27 @@ const WITHOUT_UNDO_DURATION_MS = 3_000;
 export default function Toast({ toast, onDismiss }: ToastProps) {
 	// Track the dismissal timeout so we can clear it when the toast changes.
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const currentToastRef = useRef<ToastData | null>(null);
+	const onDismissRef = useRef(onDismiss);
+
+	useEffect(() => {
+		onDismissRef.current = onDismiss;
+	}, [onDismiss]);
 
 	// Top safe-area inset so the toast clears the status bar / notch.
 	const insets = useSafeAreaInsets();
 
 	useEffect(() => {
+		const previousToast = currentToastRef.current;
+		if (
+			previousToast &&
+			previousToast !== toast &&
+			previousToast.onExpire
+		) {
+			previousToast.onExpire();
+		}
+		currentToastRef.current = toast;
+
 		// Clear any existing timeout before scheduling a new one.
 		if (timeoutRef.current) {
 			clearTimeout(timeoutRef.current);
@@ -50,7 +68,10 @@ export default function Toast({ toast, onDismiss }: ToastProps) {
 			? WITH_UNDO_DURATION_MS
 			: WITHOUT_UNDO_DURATION_MS;
 		timeoutRef.current = setTimeout(() => {
-			onDismiss?.();
+			if (currentToastRef.current !== toast) return;
+			currentToastRef.current = null;
+			toast.onExpire?.();
+			onDismissRef.current?.();
 		}, duration);
 
 		return () => {
@@ -59,7 +80,7 @@ export default function Toast({ toast, onDismiss }: ToastProps) {
 				timeoutRef.current = null;
 			}
 		};
-	}, [toast, onDismiss]);
+	}, [toast]);
 
 	if (!toast) {
 		return null;
@@ -92,6 +113,7 @@ export default function Toast({ toast, onDismiss }: ToastProps) {
 				{toast.onUndo && (
 					<TouchableOpacity
 						onPress={() => {
+							currentToastRef.current = null;
 							toast.onUndo?.();
 							onDismiss?.();
 						}}
