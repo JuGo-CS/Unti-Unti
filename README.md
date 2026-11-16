@@ -131,6 +131,14 @@ Collaborative-list actions require deployed Supabase RPCs for username invitatio
 
 Collaborative-list changes appear immediately and can be undone from the Home toast. Destructive changes are finalized in Supabase when the Undo toast expires or is replaced; keep the app open during this window.
 
+## Local Task Deadline Reminders
+
+Unti-Unti schedules one local reminder at noon on the day before each distinct upcoming deadline among the user's pending personal tasks. Reminders are reconciled at sign-in/app launch, when the app returns to the foreground, and after a task is created, edited, completed, reopened, deleted, or restored. Android notification permission is requested only when an eligible reminder needs scheduling. Notification permission denial leaves task behavior unchanged.
+
+Scheduled notifications are managed by the operating system and do not require a background task. Android restores scheduled notifications after a device restart. Scheduling is capped to leave room under platform pending-notification limits. Android may defer delivery while the device is idle; the app does not request exact-alarm permission. Android's explicit Force stop can prevent delivery until the app is launched again. A device timezone change is applied when the app next opens or returns to the foreground. If the timezone changes while the app is closed, an already-scheduled notification may fire at the old local-time equivalent before the app can resynchronize.
+
+Notifications cannot check Supabase while Unti-Unti is closed. If a task is completed or deleted on another device after a reminder was scheduled, that reminder may still appear until this device next synchronizes.
+
 ---
 
 ## Key Features Implemented

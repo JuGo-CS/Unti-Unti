@@ -12,6 +12,7 @@
 type Listener = () => void;
 
 const taskListeners = new Set<Listener>();
+const taskDeadlineListeners = new Set<Listener>();
 
 /**
  * Subscribe to task-data changes. Returns an unsubscribe function.
@@ -31,6 +32,26 @@ export function emitTaskDataChanged(): void {
 			listener();
 		} catch (err) {
 			console.error('Task change listener threw:', err);
+		}
+	});
+}
+
+export function subscribeToTaskDeadlineChanges(
+	listener: Listener
+): () => void {
+	taskDeadlineListeners.add(listener);
+	return () => {
+		taskDeadlineListeners.delete(listener);
+	};
+}
+
+/** Notify deadline-reminder sync after a successful task status/deadline change. */
+export function emitTaskDeadlineChanged(): void {
+	taskDeadlineListeners.forEach((listener) => {
+		try {
+			listener();
+		} catch (err) {
+			console.error('Task deadline listener threw:', err);
 		}
 	});
 }

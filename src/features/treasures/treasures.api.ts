@@ -1,6 +1,7 @@
 import { supabase } from '../../lib/supabase';
 import { getCategoryIconName } from '@/utils/category-icon';
 import { ensurePersonalList } from '@/features/lists/lists.api';
+import { emitTaskDeadlineChanged } from '@/lib/data-events';
 import {
 	TreasureLog,
 	TreasureGroup,
@@ -160,6 +161,8 @@ export async function deleteTreasure(taskId: string): Promise<void> {
 		console.error('Failed to delete treasure:', error.message);
 		throw error;
 	}
+
+	emitTaskDeadlineChanged();
 }
 
 /**
@@ -344,4 +347,6 @@ export async function updateTreasure(
 		console.error('Failed to update treasure:', error.message);
 		throw error;
 	}
+
+	emitTaskDeadlineChanged();
 }

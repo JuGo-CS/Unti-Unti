@@ -3,6 +3,7 @@ import { TaskItemData } from '@/components/index_components/task-item';
 import { HomeTask, HomeSortCriteria, TaskSnapshot } from './tasks.types';
 import { ensurePersonalList } from '@/features/lists/lists.api';
 import { getCategoryIconName } from '@/utils/category-icon';
+import { emitTaskDeadlineChanged } from '@/lib/data-events';
 
 /**
  * Raw shape of a row from the `tasks` table (joined with its category).
@@ -259,6 +260,8 @@ export async function completeTask(taskId: string): Promise<void> {
 			);
 		}
 	}
+
+	emitTaskDeadlineChanged();
 }
 
 /**
@@ -510,6 +513,8 @@ export async function undoCompleteTask(
 		console.error('Failed to undo task completion:', error.message);
 		throw error;
 	}
+
+	emitTaskDeadlineChanged();
 }
 
 /**
@@ -546,6 +551,8 @@ export async function restoreTask(task: HomeTask): Promise<void> {
 		console.error('Failed to restore task:', error.message);
 		throw error;
 	}
+
+	emitTaskDeadlineChanged();
 }
 
 /**
@@ -603,6 +610,8 @@ export async function restoreTaskSnapshot(
 		console.error('Failed to restore task snapshot:', error.message);
 		throw error;
 	}
+
+	emitTaskDeadlineChanged();
 }
 
 export interface CreateTaskInput {
@@ -663,4 +672,6 @@ export async function createTask(input: CreateTaskInput): Promise<void> {
 		console.error('Failed to create task:', error.message);
 		throw error;
 	}
+
+	emitTaskDeadlineChanged();
 }

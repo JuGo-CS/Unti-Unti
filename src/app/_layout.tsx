@@ -9,9 +9,14 @@ import {
 import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, AppState, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import OfflineBanner from '@/components/ui/offline-banner';
+import { subscribeToTaskDeadlineChanges } from '@/lib/data-events';
+import {
+	clearTaskDeadlineNotifications,
+	synchronizeTaskDeadlineNotifications,
+} from '@/lib/notifications/task-deadline-notifications';
 import '../../global.css';
 
 // Inner navigator that guards routes based on auth state.
@@ -19,6 +24,7 @@ function RootNavigator() {
 	const { session, isLoading } = useAuth();
 	const segments = useSegments();
 	const router = useRouter();
+	const userId = session?.user.id;
 
 	// Protect routes based on auth state
 	useEffect(() => {
@@ -38,6 +44,51 @@ function RootNavigator() {
 			router.replace('/');
 		}
 	}, [isLoading, session, segments, router]);
+
+	useEffect(() => {
+		if (isLoading) return;
+
+		if (!userId) {
+			clearTaskDeadlineNotifications().catch((error) => {
+				console.error(
+					'Failed to clear task deadline notifications:',
+					error
+				);
+			});
+			return;
+		}
+
+		const synchronize = () => {
+			synchronizeTaskDeadlineNotifications().catch((error) => {
+				console.error(
+					'Failed to synchronize task deadline notifications:',
+					error
+				);
+			});
+		};
+		const unsubscribe = subscribeToTaskDeadlineChanges(synchronize);
+		let previousAppState = AppState.currentState;
+		const appStateSubscription = AppState.addEventListener(
+			'change',
+			(nextAppState) => {
+				if (
+					nextAppState === 'active' &&
+					previousAppState !== null &&
+					previousAppState !== 'active'
+				) {
+					synchronize();
+				}
+				previousAppState = nextAppState;
+			}
+		);
+
+		synchronize();
+
+		return () => {
+			unsubscribe();
+			appStateSubscription.remove();
+		};
+	}, [isLoading, userId]);
 
 	return (
 		<View className="flex-1">
