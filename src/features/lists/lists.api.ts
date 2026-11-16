@@ -132,7 +132,9 @@ export async function createCollaborativeTask(
 	if (error) {
 		console.error('Failed to create collaborative task:', error.message);
 		if (error.code === '42501') {
-			throw new Error('You do not have access to add tasks to this list.');
+			throw new Error(
+				'You do not have access to add tasks to this list.'
+			);
 		}
 		if (error.code === 'P0002') {
 			throw new Error('This collaborative list could not be found.');
@@ -157,7 +159,10 @@ async function getCollaborativeTaskSnapshot(
 		.single();
 
 	if (error) {
-		console.error('Failed to read collaborative task before update:', error.message);
+		console.error(
+			'Failed to read collaborative task before update:',
+			error.message
+		);
 		throw error;
 	}
 
@@ -192,7 +197,10 @@ export async function restoreCollaborativeTask(
 		.maybeSingle();
 
 	if (error) {
-		console.error('Failed to undo collaborative task change:', error.message);
+		console.error(
+			'Failed to undo collaborative task change:',
+			error.message
+		);
 		throw error;
 	}
 	if (!data) {
@@ -252,7 +260,10 @@ export async function setCollaborativeTaskStatus(
 		.maybeSingle();
 
 	if (error) {
-		console.error('Failed to update collaborative task status:', error.message);
+		console.error(
+			'Failed to update collaborative task status:',
+			error.message
+		);
 		throw error;
 	}
 	if (!data) {
@@ -290,16 +301,17 @@ export async function deleteCollaborativeTask(
 	}
 }
 
-export async function deleteCollaborativeList(
-	listId: string
-): Promise<void> {
+export async function deleteCollaborativeList(listId: string): Promise<void> {
 	const {
 		data: { user },
 		error: userError,
 	} = await supabase.auth.getUser();
 
 	if (userError) {
-		console.error('Failed to verify collaborative-list owner:', userError.message);
+		console.error(
+			'Failed to verify collaborative-list owner:',
+			userError.message
+		);
 		throw userError;
 	}
 	if (!user) {
@@ -326,16 +338,17 @@ export async function deleteCollaborativeList(
 	}
 }
 
-export async function leaveCollaborativeList(
-	listId: string
-): Promise<void> {
+export async function leaveCollaborativeList(listId: string): Promise<void> {
 	const {
 		data: { user },
 		error: userError,
 	} = await supabase.auth.getUser();
 
 	if (userError) {
-		console.error('Failed to verify collaborative-list member:', userError.message);
+		console.error(
+			'Failed to verify collaborative-list member:',
+			userError.message
+		);
 		throw userError;
 	}
 	if (!user) {
@@ -357,7 +370,9 @@ export async function leaveCollaborativeList(
 		throw membershipError;
 	}
 	if (!membership) {
-		throw new Error('Your account is not a member of this collaborative list.');
+		throw new Error(
+			'Your account is not a member of this collaborative list.'
+		);
 	}
 
 	const { error: deleteError } = await supabase
@@ -368,7 +383,10 @@ export async function leaveCollaborativeList(
 		.eq('user_id', user.id);
 
 	if (deleteError) {
-		console.error('Failed to leave collaborative list:', deleteError.message);
+		console.error(
+			'Failed to leave collaborative list:',
+			deleteError.message
+		);
 		throw deleteError;
 	}
 
@@ -424,13 +442,10 @@ export async function addCollaboratorByUsername(
 		);
 	}
 
-	const { data, error } = await supabase.rpc(
-		'add_collaborator_by_username',
-		{
-			target_list_id: listId,
-			target_username: normalizedUsername,
-		}
-	);
+	const { data, error } = await supabase.rpc('add_collaborator_by_username', {
+		target_list_id: listId,
+		target_username: normalizedUsername,
+	});
 
 	if (error) {
 		if (error.code === '42501') {
@@ -456,7 +471,10 @@ export async function addCollaboratorByUsername(
 			}
 			throw new Error('Enter a valid username and try again.');
 		}
-		console.error('Failed to add collaborative-list member:', error.message);
+		console.error(
+			'Failed to add collaborative-list member:',
+			error.message
+		);
 		throw new Error('Could not add that user. Please try again.');
 	}
 
@@ -508,12 +526,17 @@ export async function removeCollaborator(
 	);
 
 	if (error) {
-		console.error('Failed to remove collaborative-list member:', error.message);
+		console.error(
+			'Failed to remove collaborative-list member:',
+			error.message
+		);
 		if (error.code === '42501') {
 			throw new Error('Only the list creator can remove members.');
 		}
 		if (error.code === 'P0002') {
-			throw new Error('This member or collaborative list no longer exists.');
+			throw new Error(
+				'This member or collaborative list no longer exists.'
+			);
 		}
 		throw new Error('Could not remove this member. Please try again.');
 	}
@@ -549,7 +572,10 @@ export async function fetchCollaborativeLists(): Promise<
 		.order('created_at', { ascending: true });
 
 	if (listsError) {
-		console.error('Failed to fetch collaborative lists:', listsError.message);
+		console.error(
+			'Failed to fetch collaborative lists:',
+			listsError.message
+		);
 		throw listsError;
 	}
 
@@ -566,7 +592,10 @@ export async function fetchCollaborativeLists(): Promise<
 		.order('created_at', { ascending: true });
 
 	if (tasksError) {
-		console.error('Failed to fetch collaborative list tasks:', tasksError.message);
+		console.error(
+			'Failed to fetch collaborative list tasks:',
+			tasksError.message
+		);
 		throw tasksError;
 	}
 
@@ -684,7 +713,10 @@ export async function ensurePersonalList(): Promise<string> {
 			.single();
 
 		if (createError) {
-			console.error('Failed to create personal list:', createError.message);
+			console.error(
+				'Failed to create personal list:',
+				createError.message
+			);
 			throw createError;
 		}
 		listId = createdList.list_id;

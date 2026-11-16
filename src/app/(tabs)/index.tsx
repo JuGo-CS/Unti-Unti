@@ -471,7 +471,8 @@ export default function HomeScreen() {
 				.catch((err) => {
 					console.error('Failed to set hero task:', err);
 					setToast({
-						message: 'Could not set the focused task. Please try again.',
+						message:
+							'Could not set the focused task. Please try again.',
 					});
 					return fetchPendingTaskQueue()
 						.then((tasks) => {
@@ -629,10 +630,7 @@ export default function HomeScreen() {
 		if (refreshing) return;
 		setRefreshing(true);
 		setTaskError(false); // reset error on refresh
-		Promise.all([
-			refreshTasks(),
-			refreshCollaborativeLists(),
-		])
+		Promise.all([refreshTasks(), refreshCollaborativeLists()])
 			.catch((err) => {
 				console.error('Failed to refresh Home:', err);
 				setTaskError(true);
@@ -825,7 +823,12 @@ export default function HomeScreen() {
 					onRetry={refreshCollaborativeLists}
 					expanded={collaborativeSectionExpanded}
 					onOptimisticUpdate={setCollaborativeLists}
-					onActionComplete={(message, onUndo, onExpire, showToast = true) => {
+					onActionComplete={(
+						message,
+						onUndo,
+						onExpire,
+						showToast = true
+					) => {
 						if (showToast) {
 							setToast({
 								message,

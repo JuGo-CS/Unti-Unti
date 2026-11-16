@@ -27,7 +27,7 @@ export function getUpcomingTaskDeadlineReminders(
 		}
 
 		// const triggerAt = new Date(year, month - 1, day - 1, 12, 0, 0, 0);
-		const triggerAt = new Date(year, month - 1, day - 1, 10, 30, 0, 0);
+		const triggerAt = new Date(year, month - 1, day - 1, 23, 45, 0, 0);
 		if (triggerAt <= now) continue;
 
 		const deadlineDate = `${match[1]}-${match[2]}-${match[3]}`;

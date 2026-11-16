@@ -267,7 +267,9 @@ export default function EditTreasureModal({
 										{selectedCategory ? (
 											<View className="flex-row items-center">
 												<Ionicons
-													name={selectedCategory.iconName}
+													name={
+														selectedCategory.iconName
+													}
 													size={16}
 													color="#3D2E2B"
 												/>
@@ -430,8 +432,14 @@ export default function EditTreasureModal({
 													<Ionicons
 														name={cat.iconName}
 														size={16}
-														color={selected ? '#FFFFFF' : '#3D2E2B'}
-														style={{ marginRight: 4 }}
+														color={
+															selected
+																? '#FFFFFF'
+																: '#3D2E2B'
+														}
+														style={{
+															marginRight: 4,
+														}}
 													/>
 													<Text
 														className={`font-fredoka-semibold ${selected ? 'text-white' : 'text-deepBrown'}`}

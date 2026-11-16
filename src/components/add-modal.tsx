@@ -85,9 +85,9 @@ export default function AddModal({
 		}
 	}, [visible]);
 
-	const [step, setStep] = useState<
-		'choose' | 'task' | 'collaborative-list'
-	>('choose');
+	const [step, setStep] = useState<'choose' | 'task' | 'collaborative-list'>(
+		'choose'
+	);
 	const [categories, setCategories] = useState<Category[]>([]);
 
 	// Task form state.
@@ -339,7 +339,8 @@ export default function AddModal({
 												Collaborative Lists
 											</Text>
 											<Text className="text-sm font-fredoka text-mutedBrown mt-0.5">
-												Create a list to share with others
+												Create a list to share with
+												others
 											</Text>
 										</View>
 										<Ionicons
@@ -442,8 +443,14 @@ export default function AddModal({
 														<Ionicons
 															name={cat.iconName}
 															size={16}
-															color={selected ? '#FFFFFF' : '#3D2E2B'}
-															style={{ marginRight: 4 }}
+															color={
+																selected
+																	? '#FFFFFF'
+																	: '#3D2E2B'
+															}
+															style={{
+																marginRight: 4,
+															}}
 														/>
 														<Text
 															className={`font-fredoka-semibold ${selected ? 'text-white' : 'text-deepBrown'}`}

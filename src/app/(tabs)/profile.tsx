@@ -210,16 +210,15 @@ export default function ProfileScreen() {
 
 		setLoadingUsername(true);
 		try {
-			const {
-				data: available,
-				error: availabilityError,
-			} = await supabase.rpc('is_username_available', {
-				candidate_username: normalizedUsername,
-			});
+			const { data: available, error: availabilityError } =
+				await supabase.rpc('is_username_available', {
+					candidate_username: normalizedUsername,
+				});
 			if (availabilityError) throw availabilityError;
 			if (!available) {
 				setToast({
-					message: 'That username is already taken. Choose another one.',
+					message:
+						'That username is already taken. Choose another one.',
 				});
 				return;
 			}
@@ -233,7 +232,9 @@ export default function ProfileScreen() {
 			setUsername(normalizedUsername);
 			setUsernameInput(normalizedUsername);
 			setUserName((currentName) =>
-				currentName === previousUsername ? normalizedUsername : currentName
+				currentName === previousUsername
+					? normalizedUsername
+					: currentName
 			);
 			setUser((currentUser) =>
 				currentUser

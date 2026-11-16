@@ -36,9 +36,7 @@ export function emitTaskDataChanged(): void {
 	});
 }
 
-export function subscribeToTaskDeadlineChanges(
-	listener: Listener
-): () => void {
+export function subscribeToTaskDeadlineChanges(listener: Listener): () => void {
 	taskDeadlineListeners.add(listener);
 	return () => {
 		taskDeadlineListeners.delete(listener);

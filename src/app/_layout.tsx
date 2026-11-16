@@ -9,14 +9,21 @@ import {
 import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { ActivityIndicator, AppState, View } from 'react-native';
+import { ActivityIndicator, AppState, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import OfflineBanner from '@/components/ui/offline-banner';
-import { subscribeToTaskDeadlineChanges } from '@/lib/data-events';
+import {
+	subscribeToTaskChanges,
+	subscribeToTaskDeadlineChanges,
+} from '@/lib/data-events';
 import {
 	clearTaskDeadlineNotifications,
 	synchronizeTaskDeadlineNotifications,
 } from '@/lib/notifications/task-deadline-notifications';
+import {
+	setFocusWidgetAccount,
+	synchronizeFocusWidget,
+} from '@/features/focus-widget/focus-widget-sync';
 import '../../global.css';
 
 // Inner navigator that guards routes based on auth state.
@@ -85,6 +92,83 @@ function RootNavigator() {
 		synchronize();
 
 		return () => {
+			unsubscribe();
+			appStateSubscription.remove();
+		};
+	}, [isLoading, userId]);
+
+	useEffect(() => {
+		if (isLoading || Platform.OS !== 'android') return;
+
+		const authenticatedUserId = userId ?? null;
+		const accountReady = setFocusWidgetAccount(authenticatedUserId);
+		let active = true;
+
+		if (!authenticatedUserId) {
+			accountReady.catch((error) => {
+				console.error(
+					'Failed to clear the focus widget account:',
+					error
+				);
+			});
+			return () => {
+				active = false;
+			};
+		}
+
+		let synchronizationInProgress = false;
+		let synchronizationRequested = false;
+
+		const synchronize = () => {
+			if (synchronizationInProgress) {
+				synchronizationRequested = true;
+				return;
+			}
+
+			synchronizationInProgress = true;
+			const run = async () => {
+				try {
+					do {
+						synchronizationRequested = false;
+						try {
+							await accountReady;
+							if (!active) return;
+							await synchronizeFocusWidget(authenticatedUserId);
+						} catch (error) {
+							console.error(
+								'Failed to synchronize the focus widget:',
+								error
+							);
+						}
+					} while (active && synchronizationRequested);
+				} finally {
+					synchronizationInProgress = false;
+				}
+			};
+
+			void run();
+		};
+
+		const unsubscribe = subscribeToTaskChanges(synchronize);
+		let previousAppState = AppState.currentState;
+		const appStateSubscription = AppState.addEventListener(
+			'change',
+			(nextAppState) => {
+				if (
+					nextAppState === 'active' &&
+					previousAppState !== null &&
+					previousAppState !== 'active'
+				) {
+					synchronize();
+				}
+				previousAppState = nextAppState;
+			}
+		);
+
+		synchronize();
+
+		return () => {
+			active = false;
 			unsubscribe();
 			appStateSubscription.remove();
 		};

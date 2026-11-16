@@ -88,9 +88,13 @@ export default function CollaborativeListCard({
 	);
 	const [saving, setSaving] = useState(false);
 
-	const updateList = (update: (current: CollaborativeListSummary) => CollaborativeListSummary) => {
+	const updateList = (
+		update: (current: CollaborativeListSummary) => CollaborativeListSummary
+	) => {
 		onOptimisticUpdate((lists) =>
-			lists.map((current) => (current.id === list.id ? update(current) : current))
+			lists.map((current) =>
+				current.id === list.id ? update(current) : current
+			)
 		);
 	};
 
@@ -128,25 +132,30 @@ export default function CollaborativeListCard({
 		}));
 	};
 
-	const makeUndo = (
-		message: string,
-		undoLocal: () => void,
-		reapplyLocal: () => void,
-		operation: () => Promise<void>
-	) => () => {
-		undoLocal();
-		void operation()
-			.then(() => onActionComplete(message))
-			.catch((error: unknown) => {
-				console.error('Failed to undo collaborative-list action:', error);
-				reapplyLocal();
-				onActionComplete(
-					error instanceof Error
-						? `Undo failed: ${error.message}`
-						: 'Undo failed. Please try again.'
-				);
-			});
-	};
+	const makeUndo =
+		(
+			message: string,
+			undoLocal: () => void,
+			reapplyLocal: () => void,
+			operation: () => Promise<void>
+		) =>
+		() => {
+			undoLocal();
+			void operation()
+				.then(() => onActionComplete(message))
+				.catch((error: unknown) => {
+					console.error(
+						'Failed to undo collaborative-list action:',
+						error
+					);
+					reapplyLocal();
+					onActionComplete(
+						error instanceof Error
+							? `Undo failed: ${error.message}`
+							: 'Undo failed. Please try again.'
+					);
+				});
+		};
 
 	const scheduleRemoval = (
 		message: string,
@@ -154,29 +163,38 @@ export default function CollaborativeListCard({
 		operation: () => Promise<void>,
 		undoLocal: () => void
 	) => {
-		onActionComplete(message, () => {
-			undoLocal();
-			onActionComplete(undoMessage);
-		}, () => {
-			void operation()
-				.then(() =>
-					onActionComplete(message, undefined, undefined, false)
-				)
-				.catch((error: unknown) => {
-					console.error(
-						'Failed to complete scheduled collaborative-list action:',
-						error
-					);
-					Alert.alert(
-						'Action failed',
-						error instanceof Error
-							? error.message
-							: 'Please try again.'
-					);
-					undoLocal();
-					onActionComplete('The action could not be completed.', undefined, undefined, false);
-				});
-		});
+		onActionComplete(
+			message,
+			() => {
+				undoLocal();
+				onActionComplete(undoMessage);
+			},
+			() => {
+				void operation()
+					.then(() =>
+						onActionComplete(message, undefined, undefined, false)
+					)
+					.catch((error: unknown) => {
+						console.error(
+							'Failed to complete scheduled collaborative-list action:',
+							error
+						);
+						Alert.alert(
+							'Action failed',
+							error instanceof Error
+								? error.message
+								: 'Please try again.'
+						);
+						undoLocal();
+						onActionComplete(
+							'The action could not be completed.',
+							undefined,
+							undefined,
+							false
+						);
+					});
+			}
+		);
 	};
 
 	const visibleTasks = expanded
@@ -338,9 +356,7 @@ export default function CollaborativeListCard({
 				const member = memberToRemove;
 				const userId = member.userId;
 				const memberLabel =
-					member.username ??
-					member.displayName ??
-					'Member';
+					member.username ?? member.displayName ?? 'Member';
 				updateList((current) => ({
 					...current,
 					members: current.members.filter(
@@ -407,17 +423,26 @@ export default function CollaborativeListCard({
 				finishAction();
 
 				try {
-					const snapshot = await updateCollaborativeTask(list.id, task.id, {
-						title,
-						description: taskDescription.trim() || null,
-					});
+					const snapshot = await updateCollaborativeTask(
+						list.id,
+						task.id,
+						{
+							title,
+							description: taskDescription.trim() || null,
+						}
+					);
 					onActionComplete(
 						'Task details updated.',
 						makeUndo(
 							'Task changes undone.',
 							() => restoreTaskLocally(task),
 							() => updateTaskLocally(task.id, () => updatedTask),
-							() => restoreCollaborativeTask(list.id, task.id, snapshot)
+							() =>
+								restoreCollaborativeTask(
+									list.id,
+									task.id,
+									snapshot
+								)
 						)
 					);
 				} catch (error) {
@@ -529,14 +554,15 @@ export default function CollaborativeListCard({
 									(member) => member.userId !== userId
 								),
 							})),
-						() => updateList((current) => ({
-							...current,
-							members: current.members.some(
-								(member) => member.userId === userId
-							)
-								? current.members
-								: [...current.members, savedMember],
-						})),
+						() =>
+							updateList((current) => ({
+								...current,
+								members: current.members.some(
+									(member) => member.userId === userId
+								)
+									? current.members
+									: [...current.members, savedMember],
+							})),
 						() => removeCollaborator(list.id, userId)
 					)
 				);
@@ -558,9 +584,7 @@ export default function CollaborativeListCard({
 			}));
 			Alert.alert(
 				'Could not add member',
-				error instanceof Error
-					? error.message
-					: 'Please try again.'
+				error instanceof Error ? error.message : 'Please try again.'
 			);
 		} finally {
 			setSaving(false);
@@ -569,7 +593,8 @@ export default function CollaborativeListCard({
 
 	const toggleTaskStatus = async (task: CollaborativeListTask) => {
 		if (processingTaskIds.has(task.id)) return;
-		const nextStatus = task.status === 'completed' ? 'pending' : 'completed';
+		const nextStatus =
+			task.status === 'completed' ? 'pending' : 'completed';
 
 		setTaskActionError(null);
 		setProcessingTaskIds((current) => new Set(current).add(task.id));
@@ -614,11 +639,7 @@ export default function CollaborativeListCard({
 				<View className="bg-focusHero/10 px-4 pb-4 pt-4">
 					<View className="flex-row items-start">
 						<View className="mr-3 rounded-2xl bg-focusHero/15 p-3">
-							<Ionicons
-								name="people"
-								size={22}
-								color="#6B8E70"
-							/>
+							<Ionicons name="people" size={22} color="#6B8E70" />
 						</View>
 						<View className="flex-1">
 							<View className="flex-row flex-wrap items-center">
@@ -783,7 +804,9 @@ export default function CollaborativeListCard({
 										className="mb-2 flex-row items-center rounded-xl bg-taskStack/45 px-3 py-2.5"
 									>
 										<TouchableOpacity
-											onPress={() => toggleTaskStatus(task)}
+											onPress={() =>
+												toggleTaskStatus(task)
+											}
 											disabled={processing}
 											activeOpacity={0.7}
 											hitSlop={8}
@@ -995,9 +1018,9 @@ export default function CollaborativeListCard({
 													? 'Delete task?'
 													: action === 'deleteList'
 														? 'Delete collaborative list?'
-															: action === 'leaveList'
-																? 'Leave collaborative list?'
-																: 'Remove member?'}
+														: action === 'leaveList'
+															? 'Leave collaborative list?'
+															: 'Remove member?'}
 								</Text>
 							</View>
 							<TouchableOpacity
@@ -1062,7 +1085,8 @@ export default function CollaborativeListCard({
 						) : action === 'member' ? (
 							<>
 								<Text className="mb-2 font-fredoka text-mutedBrown">
-									Only the creator can invite people. Enter their exact username.
+									Only the creator can invite people. Enter
+									their exact username.
 								</Text>
 								<View className="mb-3 flex-row items-center rounded-xl bg-bgCardBg px-4">
 									<Text className="font-fredoka-semibold text-mutedBrown">
@@ -1102,7 +1126,8 @@ export default function CollaborativeListCard({
 									{editingTask?.title}
 								</Text>
 								<Text className="mt-1 font-fredoka text-mutedBrown">
-									This removes the task from the shared list. You can undo it from the toast.
+									This removes the task from the shared list.
+									You can undo it from the toast.
 								</Text>
 							</View>
 						) : action === 'deleteList' ? (
@@ -1111,7 +1136,8 @@ export default function CollaborativeListCard({
 									{list.title}
 								</Text>
 								<Text className="mt-1 font-fredoka text-mutedBrown">
-									This removes the list, its tasks, and its members. You can undo it from the toast.
+									This removes the list, its tasks, and its
+									members. You can undo it from the toast.
 								</Text>
 							</View>
 						) : action === 'leaveList' ? (
@@ -1120,7 +1146,9 @@ export default function CollaborativeListCard({
 									{list.title}
 								</Text>
 								<Text className="mt-1 font-fredoka text-mutedBrown">
-									This removes your access, but does not delete the list or its other members. You can undo it from the toast.
+									This removes your access, but does not
+									delete the list or its other members. You
+									can undo it from the toast.
 								</Text>
 							</View>
 						) : (
@@ -1132,7 +1160,8 @@ export default function CollaborativeListCard({
 											'This member')}
 								</Text>
 								<Text className="mt-1 font-fredoka text-mutedBrown">
-									This removes their access to the list. You can undo it from the toast.
+									This removes their access to the list. You
+									can undo it from the toast.
 								</Text>
 							</View>
 						)}
@@ -1154,9 +1183,7 @@ export default function CollaborativeListCard({
 								action === 'removeMember'
 									? 'bg-[#C0392B]'
 									: 'bg-focusHero'
-							} ${
-								saving ? 'opacity-60' : ''
-							}`}
+							} ${saving ? 'opacity-60' : ''}`}
 						>
 							{saving ? (
 								<ActivityIndicator color="#FFFFFF" />
@@ -1168,13 +1195,13 @@ export default function CollaborativeListCard({
 											? 'Save changes'
 											: action === 'member'
 												? 'Check username & add'
-													: action === 'deleteTask'
-														? 'Delete task'
-														: action === 'deleteList'
-															? 'Delete list'
-															: action === 'leaveList'
-																? 'Leave list'
-																: 'Remove member'}
+												: action === 'deleteTask'
+													? 'Delete task'
+													: action === 'deleteList'
+														? 'Delete list'
+														: action === 'leaveList'
+															? 'Leave list'
+															: 'Remove member'}
 								</Text>
 							)}
 						</TouchableOpacity>

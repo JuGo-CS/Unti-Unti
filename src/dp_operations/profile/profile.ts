@@ -61,13 +61,15 @@ export async function updateProfile(
 
 	if (error || !data) {
 		const updateError =
-			error ?? new Error('Profile could not be updated. Please try again.');
+			error ??
+			new Error('Profile could not be updated. Please try again.');
 		let reportedError: Error | typeof updateError = updateError;
 
 		if (Object.keys(authUpdates).length > 0) {
 			const rollbackMetadata: Record<string, unknown> = {};
 			if (updates.username !== undefined) {
-				rollbackMetadata.username = user.user_metadata?.username ?? null;
+				rollbackMetadata.username =
+					user.user_metadata?.username ?? null;
 			}
 			if (updates.display_name !== undefined) {
 				rollbackMetadata.display_name =

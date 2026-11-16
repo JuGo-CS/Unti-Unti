@@ -68,14 +68,10 @@ async function reconcileTaskDeadlineNotifications(): Promise<void> {
 	const pendingTasks = await fetchPendingTaskQueue();
 	const allScheduled =
 		await Notifications.getAllScheduledNotificationsAsync();
-	const featureScheduled = allScheduled.filter(
-		isTaskDeadlineNotification
-	);
+	const featureScheduled = allScheduled.filter(isTaskDeadlineNotification);
 	const unrelatedCount = allScheduled.length - featureScheduled.length;
 	const platformLimit =
-		Platform.OS === 'ios'
-			? IOS_PENDING_LIMIT
-			: ANDROID_PENDING_LIMIT;
+		Platform.OS === 'ios' ? IOS_PENDING_LIMIT : ANDROID_PENDING_LIMIT;
 	const availableSlots = Math.max(
 		0,
 		platformLimit - unrelatedCount - RESERVED_PENDING_SLOTS
@@ -163,14 +159,13 @@ async function requestNotificationPermission(): Promise<boolean> {
 	if (hasNotificationPermission(currentPermissions)) return true;
 	if (!currentPermissions.canAskAgain) return false;
 
-	const requestedPermissions =
-		await Notifications.requestPermissionsAsync({
-			ios: {
-				allowAlert: true,
-				allowBadge: false,
-				allowSound: false,
-			},
-		});
+	const requestedPermissions = await Notifications.requestPermissionsAsync({
+		ios: {
+			allowAlert: true,
+			allowBadge: false,
+			allowSound: false,
+		},
+	});
 	return hasNotificationPermission(requestedPermissions);
 }
 

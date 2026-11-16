@@ -38,6 +38,29 @@
 			"expo-image",
 			"expo-web-browser",
 			"expo-asset",
+			[
+				"react-native-android-widget",
+				{
+					"fonts": [
+						"./node_modules/@expo-google-fonts/fredoka/500Medium/Fredoka_500Medium.ttf",
+						"./node_modules/@expo-google-fonts/fredoka/700Bold/Fredoka_700Bold.ttf"
+					],
+					"widgets": [
+						{
+							"name": "FocusWidget",
+							"label": "Unti-Unti Focus",
+							"description": "See your current personal task",
+							"minWidth": "180dp",
+							"minHeight": "120dp",
+							"targetCellWidth": 3,
+							"targetCellHeight": 2,
+							"resizeMode": "horizontal|vertical",
+							"previewImage": "./assets/widget-preview/focus-widget.png",
+							"updatePeriodMillis": 0
+						}
+					]
+				}
+			],
 			"expo-notifications"
 		],
 		"experiments": {

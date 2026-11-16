@@ -86,12 +86,10 @@ const SignupForm: React.FC = () => {
 		setLoading(true);
 
 		try {
-			const {
-				data: usernameAvailable,
-				error: usernameCheckError,
-			} = await supabase.rpc('is_username_available', {
-				candidate_username: normalizedUsername,
-			});
+			const { data: usernameAvailable, error: usernameCheckError } =
+				await supabase.rpc('is_username_available', {
+					candidate_username: normalizedUsername,
+				});
 			if (usernameCheckError) throw usernameCheckError;
 			if (!usernameAvailable) {
 				setError(
@@ -200,7 +198,8 @@ const SignupForm: React.FC = () => {
 							/>
 						</View>
 						<Text className="font-fredoka text-xs text-mutedBrown mt-1 ml-1">
-							3–30 letters, numbers, or underscores; must be unique.
+							3–30 letters, numbers, or underscores; must be
+							unique.
 						</Text>
 					</View>
 
