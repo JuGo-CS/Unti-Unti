@@ -16,6 +16,7 @@ import {
 	createCollaborativeTask,
 	deleteCollaborativeList,
 	deleteCollaborativeTask,
+	leaveCollaborativeList,
 	setCollaborativeTaskStatus,
 	updateCollaborativeTask,
 	type CollaborativeListSummary,
@@ -28,7 +29,8 @@ type ListAction =
 	| 'member'
 	| 'editTask'
 	| 'deleteTask'
-	| 'deleteList';
+	| 'deleteList'
+	| 'leaveList';
 
 export default function CollaborativeListCard({
 	list,
@@ -128,6 +130,29 @@ export default function CollaborativeListCard({
 					error instanceof Error
 						? error.message
 						: 'Could not delete the collaborative list. Please try again.'
+				);
+			} finally {
+				setSaving(false);
+			}
+			return;
+		}
+
+		if (action === 'leaveList') {
+			if (list.isOwner) {
+				setActionError('The list creator cannot leave their own list.');
+				return;
+			}
+
+			setSaving(true);
+			try {
+				await leaveCollaborativeList(list.id);
+				finishAction();
+				onActionComplete('You left the collaborative list.');
+			} catch (error) {
+				setActionError(
+					error instanceof Error
+						? error.message
+						: 'Could not leave the collaborative list. Please try again.'
 				);
 			} finally {
 				setSaving(false);
@@ -478,6 +503,24 @@ export default function CollaborativeListCard({
 							</Text>
 						</TouchableOpacity>
 					)}
+					{!list.isOwner && (
+						<TouchableOpacity
+							onPress={() => openAction('leaveList')}
+							activeOpacity={0.75}
+							className="mt-2 flex-row items-center justify-center rounded-xl border border-[#C0392B]/20 py-2.5"
+							accessibilityRole="button"
+							accessibilityLabel={`Leave collaborative list ${list.title}`}
+						>
+							<Ionicons
+								name="exit-outline"
+								size={17}
+								color="#C0392B"
+							/>
+							<Text className="ml-1.5 font-fredoka-semibold text-[#C0392B]">
+								Leave list
+							</Text>
+						</TouchableOpacity>
+					)}
 				</View>
 			</View>
 
@@ -503,13 +546,9 @@ export default function CollaborativeListCard({
 												? 'Add a member'
 												: action === 'deleteTask'
 													? 'Delete task?'
-													: 'Delete collaborative list?'}
-								</Text>
-								<Text
-									numberOfLines={1}
-									className="mt-1 font-fredoka text-mutedBrown"
-								>
-									{list.title}
+													: action === 'deleteList'
+														? 'Delete collaborative list?'
+														: 'Leave collaborative list?'}
 								</Text>
 							</View>
 							<TouchableOpacity
@@ -602,13 +641,22 @@ export default function CollaborativeListCard({
 									This permanently removes the task from this shared list.
 								</Text>
 							</View>
-						) : (
+						) : action === 'deleteList' ? (
 							<View className="mb-4 rounded-2xl bg-[#C0392B]/10 px-4 py-4">
 								<Text className="font-fredoka-semibold text-deepBrown">
 									{list.title}
 								</Text>
 								<Text className="mt-1 font-fredoka text-mutedBrown">
 									This permanently deletes the collaborative list, its tasks, and its members.
+								</Text>
+							</View>
+						) : (
+							<View className="mb-4 rounded-2xl bg-[#C0392B]/10 px-4 py-4">
+								<Text className="font-fredoka-semibold text-deepBrown">
+									{list.title}
+								</Text>
+								<Text className="mt-1 font-fredoka text-mutedBrown">
+									You will lose access to this list and its tasks. The list and its other members will not be deleted.
 								</Text>
 							</View>
 						)}
@@ -625,7 +673,8 @@ export default function CollaborativeListCard({
 							activeOpacity={0.8}
 							className={`items-center justify-center rounded-xl py-3.5 ${
 								action === 'deleteTask' ||
-								action === 'deleteList'
+								action === 'deleteList' ||
+								action === 'leaveList'
 									? 'bg-[#C0392B]'
 									: 'bg-focusHero'
 							} ${
@@ -644,11 +693,15 @@ export default function CollaborativeListCard({
 												? 'Check username & add'
 													: action === 'deleteTask'
 														? 'Delete task'
-														: 'Delete list'}
+														: action === 'deleteList'
+															? 'Delete list'
+															: 'Leave list'}
 								</Text>
 							)}
 						</TouchableOpacity>
-						{action === 'deleteTask' && (
+						{(action === 'deleteTask' ||
+							action === 'deleteList' ||
+							action === 'leaveList') && (
 							<TouchableOpacity
 								onPress={() => {
 									setActionError(null);

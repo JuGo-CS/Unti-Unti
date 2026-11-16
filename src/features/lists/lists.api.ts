@@ -219,6 +219,76 @@ export async function deleteCollaborativeList(
 	}
 }
 
+export async function leaveCollaborativeList(
+	listId: string
+): Promise<void> {
+	const {
+		data: { user },
+		error: userError,
+	} = await supabase.auth.getUser();
+
+	if (userError) {
+		console.error('Failed to verify collaborative-list member:', userError.message);
+		throw userError;
+	}
+	if (!user) {
+		throw new Error('User not authenticated');
+	}
+
+	const { data: membership, error: membershipError } = await supabase
+		.from('list_members')
+		.select('id')
+		.eq('list_id', listId)
+		.eq('user_id', user.id)
+		.maybeSingle();
+
+	if (membershipError) {
+		console.error(
+			'Failed to check collaborative-list membership:',
+			membershipError.message
+		);
+		throw membershipError;
+	}
+	if (!membership) {
+		throw new Error('Your account is not a member of this collaborative list.');
+	}
+
+	const { error: deleteError } = await supabase
+		.from('list_members')
+		.delete()
+		.eq('id', membership.id)
+		.eq('list_id', listId)
+		.eq('user_id', user.id);
+
+	if (deleteError) {
+		console.error('Failed to leave collaborative list:', deleteError.message);
+		throw deleteError;
+	}
+
+	const { data: remainingMembership, error: verificationError } =
+		await supabase
+			.from('list_members')
+			.select('id')
+			.eq('list_id', listId)
+			.eq('user_id', user.id)
+			.maybeSingle();
+
+	if (verificationError) {
+		console.error(
+			'Failed to verify collaborative-list departure:',
+			verificationError.message
+		);
+		throw verificationError;
+	}
+	if (remainingMembership) {
+		const policyError = new Error(
+			'Supabase did not remove your membership. Check that the list_members DELETE policy allows authenticated users to delete their own row (user_id = auth.uid()).'
+		);
+		console.error(policyError.message);
+		throw policyError;
+	}
+}
+
 export async function addCollaboratorByUsername(
 	listId: string,
 	username: string

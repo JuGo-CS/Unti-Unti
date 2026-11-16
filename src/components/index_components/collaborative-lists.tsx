@@ -1,7 +1,7 @@
+import type { CollaborativeListSummary } from '@/features/lists/lists.api';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import type { CollaborativeListSummary } from '@/features/lists/lists.api';
 import CollaborativeListCard from './collaborative-list-card';
 
 interface CollaborativeListsProps {
@@ -109,11 +109,7 @@ export default function CollaborativeLists({
 				</View>
 			) : lists.length === 0 ? (
 				<View className="items-center rounded-2xl bg-cardBg px-4 py-6">
-					<Ionicons
-						name="people-outline"
-						size={32}
-						color="#7D6E6B"
-					/>
+					<Ionicons name="people-outline" size={32} color="#7D6E6B" />
 					<Text className="mt-2 text-center font-fredoka text-mutedBrown">
 						You haven&apos;t joined any collaborative lists yet.
 					</Text>
