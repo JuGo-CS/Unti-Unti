@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
 	View,
 	Text,
@@ -106,6 +106,7 @@ export default function HomeScreen() {
 
 	// The ordered task queue. Index 0 is the current Hero Task.
 	const [taskQueue, setTaskQueue] = useState<HomeTask[]>([]);
+	const settingHeroRef = useRef(false);
 	const [tasksLoading, setTasksLoading] = useState(true);
 	const [taskError, setTaskError] = useState(false);
 
@@ -435,25 +436,61 @@ export default function HomeScreen() {
 	// Make the given task the Hero Task. Persists `is_focus` to Supabase.
 	const handleMakeHero = useCallback(
 		(task: TaskItemData) => {
-			setHeroTask(task.id)
+			if (settingHeroRef.current) return;
+
+			const selectedTask = taskQueue.find(
+				(queueTask) => queueTask.id === task.id
+			);
+			if (!selectedTask || selectedTask.isFocus) return;
+
+			settingHeroRef.current = true;
+			const previousHero = taskQueue.find(
+				(queueTask) => queueTask.isFocus
+			);
+			const remainingTasks = taskQueue.filter(
+				(queueTask) =>
+					queueTask.id !== selectedTask.id && !queueTask.isFocus
+			);
+			const nextQueue = sortHomeTasks(
+				[
+					{ ...selectedTask, isFocus: true, position: null },
+					...remainingTasks,
+					...(previousHero
+						? [{ ...previousHero, isFocus: false }]
+						: []),
+				],
+				sortCriteria
+			);
+			setTaskQueue(nextQueue);
+
+			setHeroTask(selectedTask.id)
+				.then(() => syncPositions(nextQueue, sortCriteria))
 				.then(() => {
-					// The DB now has exactly one `is_focus` task. Refetch so the
-					// queue reflects the new hero + the previous hero rejoins it.
-					return fetchPendingTaskQueue().then((tasks) => {
-						const nextQueue = tasks as HomeTask[];
-						setTaskQueue(nextQueue);
-						// Recalculate the non-Hero positions so the new hero has no
-						// position and the remaining tasks are sequential (0,1,2,...).
-						return syncPositions(nextQueue, 'manual').then(() => {
-							emitTaskDataChanged();
-						});
-					});
+					emitTaskDataChanged();
 				})
 				.catch((err) => {
 					console.error('Failed to set hero task:', err);
+					setToast({
+						message: 'Could not set the focused task. Please try again.',
+					});
+					return fetchPendingTaskQueue()
+						.then((tasks) => {
+							setTaskQueue(
+								sortHomeTasks(tasks as HomeTask[], sortCriteria)
+							);
+						})
+						.catch((refreshError) => {
+							console.error(
+								'Failed to refresh tasks after setting the focused task:',
+								refreshError
+							);
+						});
+				})
+				.finally(() => {
+					settingHeroRef.current = false;
 				});
 		},
-		[setTaskQueue, syncPositions]
+		[taskQueue, sortCriteria, syncPositions]
 	);
 
 	// Persist a manual drag reorder of the non-Hero tasks.
