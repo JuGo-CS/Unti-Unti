@@ -141,7 +141,7 @@ Notifications cannot check Supabase while Unti-Unti is closed. If a task is comp
 
 ## Android Focus Widget
 
-The read-only Android home-screen widget shows the current personal Home task and, when there are other pending personal tasks, how many remain. The count excludes the displayed focus task. Tapping the widget opens Unti-Unti; it does not complete tasks.
+The read-only Android home-screen widget shows the current personal Home task, its description or deadline when available, and how many other pending personal tasks remain. The count excludes the displayed focus task. Its layout adapts to the widget's size, and tapping it opens Unti-Unti; it does not complete tasks.
 
 The widget uses a local snapshot refreshed when the app launches, returns to the foreground, or receives a successful task-change event. A failed fetch keeps the last valid snapshot for the same account. Signing out or switching accounts clears the prior account's snapshot. The widget does not poll in the background and can remain stale when tasks change elsewhere until the app synchronizes again.
 

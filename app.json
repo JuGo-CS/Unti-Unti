@@ -72,9 +72,7 @@
 			"enabled": true,
 			"fallbackToCacheTimeout": 30000
 		},
-		"runtimeVersion": {
-			"policy": "appVersion"
-		},
+		"runtimeVersion": "1.1.0",
 		"extra": {
 			"router": {},
 			"eas": {

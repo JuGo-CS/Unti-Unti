@@ -6,12 +6,15 @@ import TaskActions from '@/components/ui/task-actions';
 export interface TaskItemData {
 	id: string;
 	title: string;
+	description?: string | null;
 	iconName: keyof typeof Ionicons.glyphMap;
 	completed?: boolean;
 	/** Priority from `tasks.priority`: 'high' | 'medium' | 'low'. */
 	priority?: 'high' | 'medium' | 'low';
 	/** Deadline date as `YYYY-MM-DD`, or null if the task has no deadline. */
 	deadline?: string | null;
+	/** Deadline time as `HH:MM`, or null if the task has no deadline time. */
+	deadlineTime?: string | null;
 	/** Category name from `categories.cat_name`. */
 	categoryName?: string | null;
 	/** When the task was created, used for time-added sorting. */

@@ -5,6 +5,9 @@ export interface FocusWidgetSnapshot {
 	userId: string;
 	focusTaskId: string | null;
 	focusTaskTitle: string | null;
+	focusTaskDescription?: string | null;
+	focusTaskDeadline?: string | null;
+	focusTaskDeadlineTime?: string | null;
 	remainingTaskCount: number;
 }
 
@@ -20,12 +23,23 @@ function isFocusWidgetSnapshot(value: unknown): value is FocusWidgetSnapshot {
 		typeof snapshot.focusTaskTitle === 'string';
 	const hasNoFocusTask =
 		snapshot.focusTaskId === null && snapshot.focusTaskTitle === null;
+	const hasValidTaskDetails = [
+		snapshot.focusTaskDescription,
+		snapshot.focusTaskDeadline,
+		snapshot.focusTaskDeadlineTime,
+	].every(
+		(detail) =>
+			detail === undefined ||
+			detail === null ||
+			typeof detail === 'string'
+	);
 
 	return (
 		snapshot.schemaVersion === 1 &&
 		typeof snapshot.userId === 'string' &&
 		snapshot.userId.length > 0 &&
 		(hasFocusTask || hasNoFocusTask) &&
+		hasValidTaskDetails &&
 		typeof snapshot.remainingTaskCount === 'number' &&
 		Number.isSafeInteger(snapshot.remainingTaskCount) &&
 		snapshot.remainingTaskCount >= 0 &&

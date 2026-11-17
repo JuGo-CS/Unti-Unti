@@ -63,6 +63,12 @@ function snapshotsEqual(
 		left.userId === right.userId &&
 		left.focusTaskId === right.focusTaskId &&
 		left.focusTaskTitle === right.focusTaskTitle &&
+		(left.focusTaskDescription ?? null) ===
+			(right.focusTaskDescription ?? null) &&
+		(left.focusTaskDeadline ?? null) ===
+			(right.focusTaskDeadline ?? null) &&
+		(left.focusTaskDeadlineTime ?? null) ===
+			(right.focusTaskDeadlineTime ?? null) &&
 		left.remainingTaskCount === right.remainingTaskCount
 	);
 }
@@ -70,11 +76,15 @@ function snapshotsEqual(
 async function requestCurrentWidgetUpdate(): Promise<void> {
 	await requestWidgetUpdate({
 		widgetName: FOCUS_WIDGET_NAME,
-		renderWidget: async () => {
+		renderWidget: async ({ width, height }) => {
 			const snapshot = await readFocusWidgetSnapshot();
 			const currentSnapshot =
 				snapshot?.userId === activeUserId ? snapshot : null;
-			return createElement(FocusWidget, { snapshot: currentSnapshot });
+			return createElement(FocusWidget, {
+				snapshot: currentSnapshot,
+				widgetWidth: width,
+				widgetHeight: height,
+			});
 		},
 	});
 }
@@ -134,6 +144,9 @@ export async function synchronizeFocusWidget(userId: string): Promise<void> {
 		userId,
 		focusTaskId: focusTask?.id ?? null,
 		focusTaskTitle: focusTask?.title ?? null,
+		focusTaskDescription: focusTask?.description ?? null,
+		focusTaskDeadline: focusTask?.deadline ?? null,
+		focusTaskDeadlineTime: focusTask?.deadlineTime ?? null,
 		remainingTaskCount: focusTask ? tasks.length - 1 : 0,
 	};
 
