@@ -38,19 +38,23 @@ The Focus Widget is a **read-only Android home screen widget** that displays the
 │     const focusTask = tasks.find(t => t.isFocus) ?? tasks[0] ?? null;       │
 │     ```                                                                     │
 │                                                                             │
-│  3. Builds snapshot:                                                        │
+│  3. Builds snapshot (schemaVersion 2):                                      │
 │     ```typescript                                                           │
 │     {                                                                       │
-│       schemaVersion: 1,                                                     │
+│       schemaVersion: 2,                                                     │
 │       userId,                                                               │
 │       focusTaskId: focusTask?.id ?? null,                                   │
 │       focusTaskTitle: focusTask?.title ?? null,                             │
 │       focusTaskDescription: focusTask?.description ?? null,                 │
 │       focusTaskDeadline: focusTask?.deadline ?? null,                       │
 │       focusTaskDeadlineTime: focusTask?.deadlineTime ?? null,               │
-│       remainingTaskCount: focusTask ? tasks.length - 1 : 0,                 │
+│       remainingTaskCount: Math.max(0, tasks.length - 1),                    │
+│       tasks: [...hero first, then the rest of the queue],                   │
 │     }                                                                       │
 │     ```                                                                     │
+│                                                                             │
+│     The whole pending queue is mirrored (`tasks`) so the widget can show    │
+│     the next task and can never claim "All done" while tasks remain.        │
 │                                                                             │
 │  4. Validates via `isFocusWidgetSnapshot()` → writes to **AsyncStorage**    │
 │  5. Calls `requestWidgetUpdate()` → triggers widget re-render               │

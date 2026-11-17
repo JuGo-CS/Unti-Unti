@@ -13,6 +13,7 @@ import {
 	writeFocusWidgetAccountId,
 	writeFocusWidgetSnapshot,
 	type FocusWidgetSnapshot,
+	type FocusWidgetTask,
 } from './focus-widget-snapshot';
 
 let activeUserId: string | null = null;
@@ -59,6 +60,23 @@ async function getAuthenticatedUserId(): Promise<string | null> {
 	return session?.user.id ?? null;
 }
 
+function taskListsEqual(
+	left: FocusWidgetTask[],
+	right: FocusWidgetTask[]
+): boolean {
+	if (left.length !== right.length) return false;
+	return left.every((task, index) => {
+		const other = right[index];
+		return (
+			task.id === other.id &&
+			task.title === other.title &&
+			(task.description ?? null) === (other.description ?? null) &&
+			(task.deadline ?? null) === (other.deadline ?? null) &&
+			(task.deadlineTime ?? null) === (other.deadlineTime ?? null)
+		);
+	});
+}
+
 function snapshotsEqual(
 	left: FocusWidgetSnapshot | null,
 	right: FocusWidgetSnapshot
@@ -74,7 +92,8 @@ function snapshotsEqual(
 			(right.focusTaskDeadline ?? null) &&
 		(left.focusTaskDeadlineTime ?? null) ===
 			(right.focusTaskDeadlineTime ?? null) &&
-		left.remainingTaskCount === right.remainingTaskCount
+		left.remainingTaskCount === right.remainingTaskCount &&
+		taskListsEqual(left.tasks, right.tasks)
 	);
 }
 
@@ -107,21 +126,17 @@ export function setFocusWidgetAccount(userId: string | null): Promise<void> {
 		const previousAccountId = await readFocusWidgetAccountId();
 		if (generation !== accountGeneration || activeUserId !== userId) return;
 
-		if (userId && previousAccountId === userId) {
-			const snapshot = await readFocusWidgetSnapshot();
-			if (generation !== accountGeneration || activeUserId !== userId) {
-				return;
-			}
-			if (snapshot?.userId === userId) return;
-		}
-
+		// Write the account ID first (needed for readFocusWidgetSnapshot validation)
 		if (previousAccountId !== (userId ?? '')) {
 			await writeFocusWidgetAccountId(userId);
 		}
 		if (generation !== accountGeneration || activeUserId !== userId) return;
 
-		await clearFocusWidgetSnapshot();
-		if (generation !== accountGeneration || activeUserId !== userId) return;
+		// REMOVED: Early return that skipped sync if snapshot existed for user.
+		// That caused stale snapshots to persist. Always trigger a fresh sync.
+		// REMOVED: clearFocusWidgetSnapshot() before sync - it caused a flash of
+		// "All done for now!" because requestCurrentWidgetUpdate would read null.
+		// The synchronizeFocusWidget call after this will write the correct snapshot.
 
 		try {
 			await requestCurrentWidgetUpdate();
@@ -146,15 +161,28 @@ export async function synchronizeFocusWidget(userId: string): Promise<void> {
 	if (!isCurrentRequest(userId, generation, requestId)) return;
 
 	const focusTask = tasks.find((task) => task.isFocus) ?? tasks[0] ?? null;
+	// Mirror the whole queue, hero first, so the widget can show the next
+	// tasks even when the focus task is momentarily missing.
+	const widgetTasks: FocusWidgetTask[] = [
+		...(focusTask ? [focusTask] : []),
+		...tasks.filter((task) => task.id !== focusTask?.id),
+	].map((task) => ({
+		id: task.id,
+		title: task.title,
+		description: task.description ?? null,
+		deadline: task.deadline ?? null,
+		deadlineTime: task.deadlineTime ?? null,
+	}));
 	const snapshot: FocusWidgetSnapshot = {
-		schemaVersion: 1,
+		schemaVersion: 2,
 		userId,
 		focusTaskId: focusTask?.id ?? null,
 		focusTaskTitle: focusTask?.title ?? null,
 		focusTaskDescription: focusTask?.description ?? null,
 		focusTaskDeadline: focusTask?.deadline ?? null,
 		focusTaskDeadlineTime: focusTask?.deadlineTime ?? null,
-		remainingTaskCount: focusTask ? tasks.length - 1 : 0,
+		remainingTaskCount: Math.max(0, tasks.length - 1),
+		tasks: widgetTasks,
 	};
 
 	await serializeSnapshotOperation(async () => {

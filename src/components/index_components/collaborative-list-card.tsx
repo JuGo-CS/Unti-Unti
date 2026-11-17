@@ -6,11 +6,13 @@ import {
 	KeyboardAvoidingView,
 	Modal,
 	Platform,
+	ScrollView,
 	Text,
 	TextInput,
 	TouchableOpacity,
 	View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
 	addCollaboratorByUsername,
@@ -87,6 +89,7 @@ export default function CollaborativeListCard({
 		() => new Set()
 	);
 	const [saving, setSaving] = useState(false);
+	const insets = useSafeAreaInsets();
 
 	const updateList = (
 		update: (current: CollaborativeListSummary) => CollaborativeListSummary
@@ -1002,231 +1005,256 @@ export default function CollaborativeListCard({
 			>
 				<KeyboardAvoidingView
 					behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-					className="flex-1 justify-end bg-black/50"
+					style={{ flex: 1 }}
 				>
-					<View className="rounded-t-3xl bg-cozyBg px-5 pb-10 pt-5">
-						<View className="mb-4 flex-row items-center justify-between">
-							<View className="mr-4 flex-1">
-								<Text className="text-xl font-fredoka-bold text-deepBrown">
-									{action === 'task'
-										? 'Add a task'
-										: action === 'editTask'
-											? 'Edit task'
-											: action === 'member'
-												? 'Add a member'
-												: action === 'deleteTask'
-													? 'Delete task?'
-													: action === 'deleteList'
-														? 'Delete collaborative list?'
-														: action === 'leaveList'
-															? 'Leave collaborative list?'
-															: 'Remove member?'}
-								</Text>
-							</View>
-							<TouchableOpacity
-								onPress={closeAction}
-								disabled={saving}
-								hitSlop={10}
-								accessibilityLabel="Close"
+					<View className="flex-1 justify-end bg-black/50">
+						<View
+							className="rounded-t-3xl bg-cozyBg px-5 pt-5"
+							style={{
+								paddingBottom: insets.bottom + 24,
+								maxHeight: '90%',
+							}}
+						>
+							<ScrollView
+								showsVerticalScrollIndicator={false}
+								keyboardShouldPersistTaps="handled"
+								keyboardDismissMode="interactive"
+								contentContainerStyle={{ flexGrow: 1 }}
 							>
-								<Ionicons
-									name="close"
-									size={24}
-									color="#7D6E6B"
-								/>
-							</TouchableOpacity>
-						</View>
-
-						{action === 'task' || action === 'editTask' ? (
-							<>
-								<TextInput
-									value={taskTitle}
-									onChangeText={setTaskTitle}
-									placeholder="Task title"
-									placeholderTextColor="#7D6E6B"
-									maxLength={100}
-									autoFocus={
-										action === 'task' ||
-										action === 'editTask'
-									}
-									className="mb-3 rounded-xl bg-bgCardBg px-4 py-3 font-fredoka text-deepBrown"
-								/>
-								<TextInput
-									value={taskDescription}
-									onChangeText={setTaskDescription}
-									placeholder="Details (optional)"
-									placeholderTextColor="#7D6E6B"
-									maxLength={500}
-									multiline
-									className="mb-3 min-h-[76px] rounded-xl bg-bgCardBg px-4 py-3 font-fredoka text-deepBrown"
-								/>
-								{action === 'editTask' && (
+								<View className="mb-4 flex-row items-center justify-between">
+									<View className="mr-4 flex-1">
+										<Text className="text-xl font-fredoka-bold text-deepBrown">
+											{action === 'task'
+												? 'Add a task'
+												: action === 'editTask'
+													? 'Edit task'
+													: action === 'member'
+														? 'Add a member'
+														: action ===
+															  'deleteTask'
+															? 'Delete task?'
+															: action ===
+																  'deleteList'
+																? 'Delete collaborative list?'
+																: action ===
+																	  'leaveList'
+																	? 'Leave collaborative list?'
+																	: 'Remove member?'}
+										</Text>
+									</View>
 									<TouchableOpacity
-										onPress={() => {
-											setActionError(null);
-											Keyboard.dismiss();
-											setAction('deleteTask');
-										}}
+										onPress={closeAction}
 										disabled={saving}
-										activeOpacity={0.75}
-										className="mb-3 flex-row items-center justify-center rounded-xl border border-[#C0392B]/25 py-3"
+										hitSlop={10}
+										accessibilityLabel="Close"
 									>
 										<Ionicons
-											name="trash-outline"
-											size={17}
-											color="#C0392B"
+											name="close"
+											size={24}
+											color="#7D6E6B"
 										/>
-										<Text className="ml-2 font-fredoka-semibold text-[#C0392B]">
-											Delete task
-										</Text>
 									</TouchableOpacity>
-								)}
-							</>
-						) : action === 'member' ? (
-							<>
-								<Text className="mb-2 font-fredoka text-mutedBrown">
-									Only the creator can invite people. Enter
-									their exact username.
-								</Text>
-								<View className="mb-3 flex-row items-center rounded-xl bg-bgCardBg px-4">
-									<Text className="font-fredoka-semibold text-mutedBrown">
-										@
-									</Text>
-									<TextInput
-										value={username}
-										onChangeText={(value) => {
-											setUsername(value);
-											setActionError(null);
-										}}
-										placeholder="username"
-										placeholderTextColor="#7D6E6B"
-										autoCapitalize="none"
-										autoCorrect={false}
-										maxLength={30}
-										autoFocus
-										className="flex-1 py-3 pl-1 font-fredoka text-deepBrown"
-									/>
 								</View>
-								{actionError && (
-									<View className="mb-3 flex-row items-start rounded-xl bg-[#C0392B]/10 px-3 py-2.5">
-										<Ionicons
-											name="alert-circle-outline"
-											size={18}
-											color="#C0392B"
+
+								{action === 'task' || action === 'editTask' ? (
+									<>
+										<TextInput
+											value={taskTitle}
+											onChangeText={setTaskTitle}
+											placeholder="Task title"
+											placeholderTextColor="#7D6E6B"
+											maxLength={100}
+											autoFocus={
+												action === 'task' ||
+												action === 'editTask'
+											}
+											className="mb-3 rounded-xl bg-bgCardBg px-4 py-3 font-fredoka text-deepBrown"
 										/>
-										<Text className="ml-2 flex-1 font-fredoka text-[#C0392B]">
-											{actionError}
+										<TextInput
+											value={taskDescription}
+											onChangeText={setTaskDescription}
+											placeholder="Details (optional)"
+											placeholderTextColor="#7D6E6B"
+											maxLength={500}
+											multiline
+											className="mb-3 min-h-[76px] rounded-xl bg-bgCardBg px-4 py-3 font-fredoka text-deepBrown"
+										/>
+										{action === 'editTask' && (
+											<TouchableOpacity
+												onPress={() => {
+													setActionError(null);
+													Keyboard.dismiss();
+													setAction('deleteTask');
+												}}
+												disabled={saving}
+												activeOpacity={0.75}
+												className="mb-3 flex-row items-center justify-center rounded-xl border border-[#C0392B]/25 py-3"
+											>
+												<Ionicons
+													name="trash-outline"
+													size={17}
+													color="#C0392B"
+												/>
+												<Text className="ml-2 font-fredoka-semibold text-[#C0392B]">
+													Delete task
+												</Text>
+											</TouchableOpacity>
+										)}
+									</>
+								) : action === 'member' ? (
+									<>
+										<Text className="mb-2 font-fredoka text-mutedBrown">
+											Only the creator can invite people.
+											Enter their exact username.
+										</Text>
+										<View className="mb-3 flex-row items-center rounded-xl bg-bgCardBg px-4">
+											<Text className="font-fredoka-semibold text-mutedBrown">
+												@
+											</Text>
+											<TextInput
+												value={username}
+												onChangeText={(value) => {
+													setUsername(value);
+													setActionError(null);
+												}}
+												placeholder="username"
+												placeholderTextColor="#7D6E6B"
+												autoCapitalize="none"
+												autoCorrect={false}
+												maxLength={30}
+												autoFocus
+												className="flex-1 py-3 pl-1 font-fredoka text-deepBrown"
+											/>
+										</View>
+										{actionError && (
+											<View className="mb-3 flex-row items-start rounded-xl bg-[#C0392B]/10 px-3 py-2.5">
+												<Ionicons
+													name="alert-circle-outline"
+													size={18}
+													color="#C0392B"
+												/>
+												<Text className="ml-2 flex-1 font-fredoka text-[#C0392B]">
+													{actionError}
+												</Text>
+											</View>
+										)}
+									</>
+								) : action === 'deleteTask' ? (
+									<View className="mb-4 rounded-2xl bg-[#C0392B]/10 px-4 py-4">
+										<Text className="font-fredoka-semibold text-deepBrown">
+											{editingTask?.title}
+										</Text>
+										<Text className="mt-1 font-fredoka text-mutedBrown">
+											This removes the task from the
+											shared list. You can undo it from
+											the toast.
+										</Text>
+									</View>
+								) : action === 'deleteList' ? (
+									<View className="mb-4 rounded-2xl bg-[#C0392B]/10 px-4 py-4">
+										<Text className="font-fredoka-semibold text-deepBrown">
+											{list.title}
+										</Text>
+										<Text className="mt-1 font-fredoka text-mutedBrown">
+											This removes the list, its tasks,
+											and its members. You can undo it
+											from the toast.
+										</Text>
+									</View>
+								) : action === 'leaveList' ? (
+									<View className="mb-4 rounded-2xl bg-[#C0392B]/10 px-4 py-4">
+										<Text className="font-fredoka-semibold text-deepBrown">
+											{list.title}
+										</Text>
+										<Text className="mt-1 font-fredoka text-mutedBrown">
+											This removes your access, but does
+											not delete the list or its other
+											members. You can undo it from the
+											toast.
+										</Text>
+									</View>
+								) : (
+									<View className="mb-4 rounded-2xl bg-[#C0392B]/10 px-4 py-4">
+										<Text className="font-fredoka-semibold text-deepBrown">
+											{memberToRemove?.username
+												? `@${memberToRemove.username}`
+												: (memberToRemove?.displayName ??
+													'This member')}
+										</Text>
+										<Text className="mt-1 font-fredoka text-mutedBrown">
+											This removes their access to the
+											list. You can undo it from the
+											toast.
 										</Text>
 									</View>
 								)}
-							</>
-						) : action === 'deleteTask' ? (
-							<View className="mb-4 rounded-2xl bg-[#C0392B]/10 px-4 py-4">
-								<Text className="font-fredoka-semibold text-deepBrown">
-									{editingTask?.title}
-								</Text>
-								<Text className="mt-1 font-fredoka text-mutedBrown">
-									This removes the task from the shared list.
-									You can undo it from the toast.
-								</Text>
-							</View>
-						) : action === 'deleteList' ? (
-							<View className="mb-4 rounded-2xl bg-[#C0392B]/10 px-4 py-4">
-								<Text className="font-fredoka-semibold text-deepBrown">
-									{list.title}
-								</Text>
-								<Text className="mt-1 font-fredoka text-mutedBrown">
-									This removes the list, its tasks, and its
-									members. You can undo it from the toast.
-								</Text>
-							</View>
-						) : action === 'leaveList' ? (
-							<View className="mb-4 rounded-2xl bg-[#C0392B]/10 px-4 py-4">
-								<Text className="font-fredoka-semibold text-deepBrown">
-									{list.title}
-								</Text>
-								<Text className="mt-1 font-fredoka text-mutedBrown">
-									This removes your access, but does not
-									delete the list or its other members. You
-									can undo it from the toast.
-								</Text>
-							</View>
-						) : (
-							<View className="mb-4 rounded-2xl bg-[#C0392B]/10 px-4 py-4">
-								<Text className="font-fredoka-semibold text-deepBrown">
-									{memberToRemove?.username
-										? `@${memberToRemove.username}`
-										: (memberToRemove?.displayName ??
-											'This member')}
-								</Text>
-								<Text className="mt-1 font-fredoka text-mutedBrown">
-									This removes their access to the list. You
-									can undo it from the toast.
-								</Text>
-							</View>
-						)}
 
-						{actionError && action !== 'member' && (
-							<Text className="mb-3 font-fredoka text-[#C0392B]">
-								{actionError}
-							</Text>
-						)}
+								{actionError && action !== 'member' && (
+									<Text className="mb-3 font-fredoka text-[#C0392B]">
+										{actionError}
+									</Text>
+								)}
 
-						<TouchableOpacity
-							onPress={submitAction}
-							disabled={saving}
-							activeOpacity={0.8}
-							className={`items-center justify-center rounded-xl py-3.5 ${
-								action === 'deleteTask' ||
-								action === 'deleteList' ||
-								action === 'leaveList' ||
-								action === 'removeMember'
-									? 'bg-[#C0392B]'
-									: 'bg-focusHero'
-							} ${saving ? 'opacity-60' : ''}`}
-						>
-							{saving ? (
-								<ActivityIndicator color="#FFFFFF" />
-							) : (
-								<Text className="font-fredoka-bold text-white">
-									{action === 'task'
-										? 'Add task'
-										: action === 'editTask'
-											? 'Save changes'
-											: action === 'member'
-												? 'Check username & add'
-												: action === 'deleteTask'
-													? 'Delete task'
-													: action === 'deleteList'
-														? 'Delete list'
-														: action === 'leaveList'
-															? 'Leave list'
-															: 'Remove member'}
-								</Text>
-							)}
-						</TouchableOpacity>
-						{(action === 'deleteTask' ||
-							action === 'deleteList' ||
-							action === 'leaveList' ||
-							action === 'removeMember') && (
-							<TouchableOpacity
-								onPress={() => {
-									setActionError(null);
-									if (action === 'deleteTask') {
-										setAction('editTask');
-									} else {
-										finishAction();
-									}
-								}}
-								disabled={saving}
-								activeOpacity={0.75}
-								className="mt-2 items-center rounded-xl py-3"
-							>
-								<Text className="font-fredoka-semibold text-deepBrown">
-									Cancel
-								</Text>
-							</TouchableOpacity>
-						)}
+								<TouchableOpacity
+									onPress={submitAction}
+									disabled={saving}
+									activeOpacity={0.8}
+									className={`items-center justify-center rounded-xl py-3.5 ${
+										action === 'deleteTask' ||
+										action === 'deleteList' ||
+										action === 'leaveList' ||
+										action === 'removeMember'
+											? 'bg-[#C0392B]'
+											: 'bg-focusHero'
+									} ${saving ? 'opacity-60' : ''}`}
+								>
+									{saving ? (
+										<ActivityIndicator color="#FFFFFF" />
+									) : (
+										<Text className="font-fredoka-bold text-white">
+											{action === 'task'
+												? 'Add task'
+												: action === 'editTask'
+													? 'Save changes'
+													: action === 'member'
+														? 'Check username & add'
+														: action ===
+															  'deleteTask'
+															? 'Delete task'
+															: action ===
+																  'deleteList'
+																? 'Delete list'
+																: action ===
+																	  'leaveList'
+																	? 'Leave list'
+																	: 'Remove member'}
+										</Text>
+									)}
+								</TouchableOpacity>
+								{(action === 'deleteTask' ||
+									action === 'deleteList' ||
+									action === 'leaveList' ||
+									action === 'removeMember') && (
+									<TouchableOpacity
+										onPress={() => {
+											setActionError(null);
+											if (action === 'deleteTask') {
+												setAction('editTask');
+											} else {
+												finishAction();
+											}
+										}}
+										disabled={saving}
+										activeOpacity={0.75}
+										className="mt-2 items-center rounded-xl py-3"
+									>
+										<Text className="font-fredoka-semibold text-deepBrown">
+											Cancel
+										</Text>
+									</TouchableOpacity>
+								)}
+							</ScrollView>
+						</View>
 					</View>
 				</KeyboardAvoidingView>
 			</Modal>

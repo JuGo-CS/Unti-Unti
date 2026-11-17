@@ -276,7 +276,8 @@ AddModal (add-modal.tsx)
 Widget Process (read-only)
   ├─ Android requests render → widget-task-handler.tsx
   ├─ Reads snapshot from AsyncStorage (local, on-device)
-  ├─ Renders FocusWidget with: focusTaskTitle, description, deadline, remainingTaskCount
+  ├─ Renders FocusWidget with: focus task (title, description, deadline),
+  │  "+N left" pill, and the next task in the queue
   └─ Entire widget: clickAction="OPEN_APP" → opens main app
 
 Main App Process (writes snapshot)
@@ -285,14 +286,15 @@ Main App Process (writes snapshot)
   ├─ Hero = task with is_focus=true else first task
   ├─ Build snapshot:
   │   {
-  │     schemaVersion: 1,
+  │     schemaVersion: 2,
   │     userId,
   │     focusTaskId,
   │     focusTaskTitle,
   │     focusTaskDescription,
   │     focusTaskDeadline,
   │     focusTaskDeadlineTime,
-  │     remainingTaskCount: focusTask ? tasks.length - 1 : 0
+  │     remainingTaskCount: Math.max(0, tasks.length - 1),
+  │     tasks: [hero, ...rest of the pending queue]
   │   }
   ├─ Validate via isFocusWidgetSnapshot() → write AsyncStorage
   └─ requestWidgetUpdate() → triggers widget re-render

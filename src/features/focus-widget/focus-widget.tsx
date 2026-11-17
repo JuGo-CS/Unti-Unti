@@ -1,5 +1,8 @@
 import { FlexWidget, TextWidget } from 'react-native-android-widget';
-import type { FocusWidgetSnapshot } from './focus-widget-snapshot';
+import type {
+	FocusWidgetSnapshot,
+	FocusWidgetTask,
+} from './focus-widget-snapshot';
 
 export const FOCUS_WIDGET_NAME = 'FocusWidget';
 
@@ -52,18 +55,43 @@ function formatDeadline(
 	return `Due ${dateLabel} at ${time}`;
 }
 
+/**
+ * Resolve what the widget shows from the mirrored queue.
+ *
+ * The queue is the source of truth: the focus task is the one the snapshot
+ * flags (or the head of the queue), and the next task is the first remaining
+ * one. "All done" is only shown when the queue itself is empty, so a missing
+ * focus id can never hide pending tasks.
+ */
+function resolveWidgetTasks(snapshot: FocusWidgetSnapshot | null): {
+	focusTask: FocusWidgetTask | null;
+	nextTask: FocusWidgetTask | null;
+} {
+	const tasks = snapshot?.tasks ?? [];
+	const focusTask =
+		(snapshot?.focusTaskId
+			? tasks.find((task) => task.id === snapshot.focusTaskId)
+			: undefined) ??
+		tasks[0] ??
+		null;
+	const nextTask = tasks.find((task) => task.id !== focusTask?.id) ?? null;
+	return { focusTask, nextTask };
+}
+
 export function FocusWidget({
 	snapshot,
 	widgetWidth,
 	widgetHeight,
 }: FocusWidgetProps) {
-	const focusTitle = snapshot?.focusTaskTitle ?? null;
-	const focusDescription = snapshot?.focusTaskDescription?.trim() || null;
+	const { focusTask, nextTask } = resolveWidgetTasks(snapshot);
+	const remainingTaskCount =
+		snapshot?.remainingTaskCount ??
+		(snapshot?.tasks ? Math.max(0, snapshot.tasks.length - 1) : 0);
+	const focusDescription = focusTask?.description?.trim() || null;
 	const deadlineLabel = formatDeadline(
-		snapshot?.focusTaskDeadline,
-		snapshot?.focusTaskDeadlineTime
+		focusTask?.deadline,
+		focusTask?.deadlineTime
 	);
-	const remainingTaskCount = snapshot?.remainingTaskCount ?? 0;
 	// Defensive: ensure valid dimensions, default to non-compact if invalid
 	const validWidth = widgetWidth > 0 ? widgetWidth : 300;
 	const validHeight = widgetHeight > 0 ? widgetHeight : 200;
@@ -113,7 +141,7 @@ export function FocusWidget({
 						truncate="END"
 					/>
 				</FlexWidget>
-				{focusTitle && remainingTaskCount > 0 ? (
+				{focusTask && remainingTaskCount > 0 ? (
 					<FlexWidget
 						style={{
 							paddingHorizontal: compact ? 7 : 9,
@@ -163,14 +191,14 @@ export function FocusWidget({
 						justifyContent: 'center',
 					}}
 				>
-					{focusTitle ? (
+					{focusTask ? (
 						<FlexWidget
 							style={{
 								flexDirection: 'column',
 							}}
 						>
 							<TextWidget
-								text={focusTitle}
+								text={focusTask.title}
 								style={{
 									fontFamily: 'Fredoka_700Bold',
 									fontSize: compact ? 16 : 20,
@@ -261,6 +289,42 @@ export function FocusWidget({
 					)}
 				</FlexWidget>
 			</FlexWidget>
+
+			{nextTask && !compact ? (
+				<FlexWidget
+					style={{
+						flexDirection: 'row',
+						alignItems: 'center',
+						marginTop: 8,
+						paddingHorizontal: 4,
+					}}
+				>
+					<TextWidget
+						text="Next:"
+						style={{
+							marginRight: 6,
+							fontFamily: 'Fredoka_500Medium',
+							fontSize: 11,
+							color: 'rgba(253, 251, 247, 0.78)',
+						}}
+						allowFontScaling={false}
+						maxLines={1}
+					/>
+					<FlexWidget style={{ flex: 1 }}>
+						<TextWidget
+							text={nextTask.title}
+							style={{
+								fontFamily: 'Fredoka_500Medium',
+								fontSize: 12,
+								color: COZY_BACKGROUND,
+							}}
+							allowFontScaling={false}
+							maxLines={1}
+							truncate="END"
+						/>
+					</FlexWidget>
+				</FlexWidget>
+			) : null}
 		</FlexWidget>
 	);
 }

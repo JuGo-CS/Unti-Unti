@@ -248,7 +248,7 @@ export default function AddModal({
 			onRequestClose={handleClose}
 		>
 			<KeyboardAvoidingView
-				behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+				behavior="padding"
 				keyboardVerticalOffset={Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0}
 				className="flex-1 justify-end"
 				style={{ flex: 1 }}
