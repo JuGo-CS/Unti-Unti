@@ -16,7 +16,17 @@ import {
 } from '@expo-google-fonts/fredoka';
 import { useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { subscribeToTaskChanges, emitTaskDataChanged } from '@/lib/data-events';
+import {
+	beginTaskMutation,
+	emitOptimisticTaskUpdate,
+	emitTaskDataChanged,
+	finishTaskMutation,
+	isTaskMutationInProgress,
+	OptimisticTaskUpdate,
+	serializeTaskMutation,
+	subscribeToOptimisticTaskUpdates,
+	subscribeToTaskChanges,
+} from '@/lib/data-events';
 import { getHomeSortCriteria, setHomeSortCriteria } from '@/lib/home-sort';
 import HeroCard from '@/components/index_components/hero-card';
 import OtherTasks, {
@@ -53,6 +63,7 @@ import {
 	TreasureLog,
 } from '@/features/treasures/treasures.api';
 import { triggerHaptic } from '@/utils/haptics';
+import { getCategoryIconName } from '@/utils/category-icon';
 import { supabase } from '@/lib/supabase';
 import { getProfile } from '@/dp_operations/profile/profile';
 import {
@@ -92,6 +103,97 @@ function formatTodayLabel(date: Date): string {
 	});
 }
 
+function completionDateTime(): {
+	completedDate: string;
+	completedTime: string;
+} {
+	const now = new Date();
+	return {
+		completedDate: `${now.getFullYear()}-${String(
+			now.getMonth() + 1
+		).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+		completedTime: now.toTimeString().slice(0, 8),
+	};
+}
+
+function compareQueueOrder(first: HomeTask, second: HomeTask): number {
+	if (first.position != null && second.position != null) {
+		return first.position - second.position;
+	}
+	if (first.position != null) return -1;
+	if (second.position != null) return 1;
+	return first.createdAt.localeCompare(second.createdAt);
+}
+
+function applyOptimisticTaskUpdate(
+	queue: HomeTask[],
+	update: {
+		task: HomeTask;
+		previousIndex?: number;
+		previousWasFocus?: boolean;
+	},
+	sortCriteria: HomeSortCriteria
+): HomeTask[] {
+	const existingIndex = queue.findIndex(
+		(task) => task.id === update.task.id
+	);
+	const existingTask =
+		existingIndex >= 0 ? queue[existingIndex] : undefined;
+
+	if (update.task.completed) {
+		const nextQueue = queue.filter((task) => task.id !== update.task.id);
+		const wasFocus =
+			update.previousWasFocus === true || existingTask?.isFocus === true;
+		if (
+			wasFocus &&
+			nextQueue.length > 0 &&
+			!nextQueue.some((task) => task.isFocus)
+		) {
+			const nextFocus = nextQueue
+				.filter((task) => !task.isFocus)
+				.sort(compareQueueOrder)[0];
+			if (nextFocus) {
+				const nextFocusIndex = nextQueue.findIndex(
+					(task) => task.id === nextFocus.id
+				);
+				nextQueue[nextFocusIndex] = {
+					...nextFocus,
+					isFocus: true,
+					position: null,
+				};
+			}
+		}
+		return sortHomeTasks(nextQueue, sortCriteria);
+	}
+
+	const nextTask: HomeTask = {
+		...update.task,
+		position: existingTask?.position ?? update.task.position,
+	};
+	const nextQueue = [...queue];
+	if (existingIndex >= 0) {
+		nextQueue[existingIndex] = nextTask;
+	} else {
+		const insertAt =
+			update.previousIndex == null
+				? nextQueue.length
+				: Math.max(0, Math.min(update.previousIndex, nextQueue.length));
+		nextQueue.splice(insertAt, 0, nextTask);
+	}
+
+	if (nextTask.isFocus) {
+		for (let index = 0; index < nextQueue.length; index += 1) {
+			if (nextQueue[index].id !== nextTask.id) {
+				nextQueue[index] = {
+					...nextQueue[index],
+					isFocus: false,
+				};
+			}
+		}
+	}
+	return sortHomeTasks(nextQueue, sortCriteria);
+}
+
 export default function HomeScreen() {
 	// 1. ALL HOOK DECLARATIONS MUST COME FIRST (Never place early returns above these)
 	const [fontsLoaded] = useFonts({
@@ -106,6 +208,7 @@ export default function HomeScreen() {
 
 	// The ordered task queue. Index 0 is the current Hero Task.
 	const [taskQueue, setTaskQueue] = useState<HomeTask[]>([]);
+	const taskRefreshGeneration = useRef(0);
 	const settingHeroRef = useRef(false);
 	const [tasksLoading, setTasksLoading] = useState(true);
 	const [taskError, setTaskError] = useState(false);
@@ -175,18 +278,36 @@ export default function HomeScreen() {
 	}, [sortCriteria]);
 
 	const refreshTasks = useCallback(() => {
+		if (isTaskMutationInProgress()) return Promise.resolve();
+		const generation = ++taskRefreshGeneration.current;
 		setTaskError(false); // reset error at start of fetch
 		return Promise.all([fetchPendingTaskQueue(), getHomeSortCriteria()])
 			.then(([tasks, criteria]) => {
+				if (
+					generation !== taskRefreshGeneration.current ||
+					isTaskMutationInProgress()
+				) {
+					return;
+				}
 				setSortCriteria(criteria);
 				setTaskQueue(sortHomeTasks(tasks as HomeTask[], criteria));
 			})
 			.catch((err) => {
-				console.error('Failed to load task queue:', err);
-				setTaskError(true);
+				if (
+					generation === taskRefreshGeneration.current &&
+					!isTaskMutationInProgress()
+				) {
+					console.error('Failed to load task queue:', err);
+					setTaskError(true);
+				}
 			})
 			.finally(() => {
-				setTasksLoading(false);
+				if (
+					generation === taskRefreshGeneration.current &&
+					!isTaskMutationInProgress()
+				) {
+					setTasksLoading(false);
+				}
 			});
 	}, []);
 
@@ -226,6 +347,15 @@ export default function HomeScreen() {
 		});
 		return subs;
 	}, [refreshTasks, refreshCollaborativeLists]);
+
+	useEffect(() => {
+		return subscribeToOptimisticTaskUpdates((update) => {
+			taskRefreshGeneration.current += 1;
+			setTaskQueue((current) =>
+				applyOptimisticTaskUpdate(current, update, sortCriteria)
+			);
+		});
+	}, [sortCriteria]);
 
 	useFocusEffect(
 		useCallback(() => {
@@ -273,31 +403,80 @@ export default function HomeScreen() {
 		[]
 	);
 
-	// Undo a task completion: restore it to the active queue, re-sync positions,
-	// and refresh the UI. Shows a success toast on success, an error toast on failure.
-	// If showToast is false, no toast is shown (used for internal rollback).
+	// Undo a task completion optimistically, then restore it in Supabase.
 	const undoTaskCompletion = useCallback(
-		(task: TaskItemData, wasHero: boolean, showToast: boolean = true) => {
-			undoCompleteTask(task.id, wasHero)
-				.then(() => fetchPendingTaskQueue())
-				.then((tasks) => {
-					const nextQueue = tasks as HomeTask[];
-					setTaskQueue(nextQueue);
-					return syncPositions(nextQueue, sortCriteria).then(() => {
-						if (showToast) {
-							setToast({ message: 'Task restored.' });
-						}
-						emitTaskDataChanged();
-					});
-				})
-				.catch((err) => {
+		(
+			task: TaskItemData,
+			wasHero: boolean,
+			showToast: boolean = true,
+			previousIndex?: number,
+			completedDate?: string,
+			completedTime?: string
+		) => {
+			const fullTask = task as HomeTask;
+			if (!beginTaskMutation(task.id)) {
+				if (showToast) {
+					setToast({ message: 'This task is still being updated.' });
+				}
+				return;
+			}
+
+			const restoredTask = {
+				...fullTask,
+				completed: false,
+				isFocus: wasHero,
+			};
+			const optimisticUpdate = {
+				task: restoredTask,
+				completedDate: null,
+				completedTime: null,
+				previousIndex,
+				previousWasFocus: wasHero,
+			};
+			setTaskQueue((current) =>
+				applyOptimisticTaskUpdate(current, optimisticUpdate, sortCriteria)
+			);
+			emitOptimisticTaskUpdate(optimisticUpdate);
+
+			void serializeTaskMutation(async () => {
+				try {
+					await undoCompleteTask(task.id, wasHero);
+					const currentQueue =
+						(await fetchPendingTaskQueue()) as HomeTask[];
+					await syncPositions(currentQueue, sortCriteria);
+					if (showToast) {
+						setToast({ message: 'Task restored.' });
+					}
+				} catch (err) {
 					console.error('Failed to undo task completion:', err);
+					const completedTask = {
+						...fullTask,
+						completed: true,
+						isFocus: false,
+					};
+					const rollbackUpdate = {
+						task: completedTask,
+						completedDate: completedDate ?? null,
+						completedTime: completedTime ?? null,
+						previousIndex,
+					};
+					setTaskQueue((current) =>
+						applyOptimisticTaskUpdate(
+							current,
+							rollbackUpdate,
+							sortCriteria
+						)
+					);
+					emitOptimisticTaskUpdate(rollbackUpdate);
 					if (showToast) {
 						setToast({
 							message: 'Could not undo. Please try again.',
 						});
 					}
-				});
+				} finally {
+					finishTaskMutation(task.id);
+				}
+			});
 		},
 		[syncPositions, sortCriteria]
 	);
@@ -323,89 +502,109 @@ export default function HomeScreen() {
 		[syncPositions, sortCriteria]
 	);
 
-	// Completing the Hero Task promotes the next task in line.
-	const handleHeroComplete = useCallback(
+	// Completing any task removes it immediately; the queue head is promoted
+	// when the completed task was the current focus.
+	const handleCompleteTask = useCallback(
 		(task: TaskItemData) => {
 			triggerHaptic.heavy(); // Task completion toggle
-			const wasHero = task.isFocus === true;
-
-			// 1. Optimistically update the state: remove the hero task and promote the next task.
-			const optimisticNextQueue = taskQueue.filter(
-				(t) => t.id !== task.id
+			const previousIndex = taskQueue.findIndex(
+				(queuedTask) => queuedTask.id === task.id
 			);
-			setTaskQueue(optimisticNextQueue);
-			// Persist the new positions (non-hero tasks) optimistically.
-			syncPositions(optimisticNextQueue, sortCriteria).catch(
-				console.error
-			);
-
-			// 2. Show a toast with an undo option.
-			setToast({
-				message: 'Task completed!',
-				undoLabel: 'Undo',
-				onUndo: () => undoTaskCompletion(task, wasHero, true), // User-initiated undo shows a toast.
-			});
-
-			// 3. Persist the completion to the database.
-			completeTask(task.id)
-				.then(() => {
-					// On success, we do nothing to the toast (the undo toast remains until user action).
-					// The state is already updated optimistically, and the database is now consistent.
-					emitTaskDataChanged();
-				})
-				.catch((err) => {
-					console.error('Failed to complete hero task:', err);
-					// Rollback the optimistic update.
-					undoTaskCompletion(task, wasHero, false); // Internal rollback: no toast from undo function.
+			const currentTask = taskQueue[previousIndex];
+			if (!currentTask || !beginTaskMutation(task.id)) {
+				if (currentTask) {
 					setToast({
-						message: 'Failed to complete task. Please try again.',
+						message: 'This task is still being updated.',
+					});
+				}
+				return;
+			}
+
+			const wasHero = currentTask.isFocus || previousIndex === 0;
+			const { completedDate, completedTime } = completionDateTime();
+			const completedTask: HomeTask = {
+				...currentTask,
+				completed: true,
+				isFocus: false,
+			};
+			const optimisticUpdate = {
+				task: completedTask,
+				completedDate,
+				completedTime,
+				previousIndex,
+				previousWasFocus: wasHero,
+			};
+			taskRefreshGeneration.current += 1;
+			setTaskQueue((current) =>
+				applyOptimisticTaskUpdate(current, optimisticUpdate, sortCriteria)
+			);
+			emitOptimisticTaskUpdate(optimisticUpdate);
+
+			void serializeTaskMutation(async () => {
+				try {
+					await completeTask(task.id);
+					const currentQueue =
+						(await fetchPendingTaskQueue()) as HomeTask[];
+					await syncPositions(currentQueue, sortCriteria);
+					setToast({
+						message: 'Task completed!',
+						undoLabel: 'Undo',
+						onUndo: () =>
+							undoTaskCompletion(
+								currentTask,
+								wasHero,
+								true,
+								previousIndex,
+								completedDate,
+								completedTime
+							),
+					});
+				} catch (err) {
+					console.error('Failed to complete task:', err);
+					const rollbackUpdate = {
+						task: currentTask,
+						completedDate: null,
+						completedTime: null,
+						previousIndex,
+						previousWasFocus: wasHero,
+					};
+					setTaskQueue((current) =>
+						applyOptimisticTaskUpdate(
+							current,
+							rollbackUpdate,
+							sortCriteria
+						)
+					);
+					emitOptimisticTaskUpdate(rollbackUpdate);
+
+					let rollbackFailed = false;
+					try {
+						await undoCompleteTask(task.id, wasHero);
+						const restoredQueue =
+							(await fetchPendingTaskQueue()) as HomeTask[];
+						await syncPositions(restoredQueue, sortCriteria);
+					} catch (rollbackError) {
+						rollbackFailed = true;
+						console.error(
+							'Failed to roll back task completion:',
+							rollbackError
+						);
+					}
+					setToast({
+						message: rollbackFailed
+							? 'The task may still be completed. Refresh and check its status.'
+							: 'Could not complete the task. Please try again.',
 						undoLabel: undefined,
 					});
-				});
+				} finally {
+					finishTaskMutation(task.id);
+				}
+			});
 		},
 		[taskQueue, sortCriteria, syncPositions, undoTaskCompletion]
 	);
-
-	const handleToggleTask = useCallback(
-		(task: TaskItemData) => {
-			triggerHaptic.heavy(); // Task completion toggle
-			const wasHero = task.isFocus === true;
-
-			// 1. Optimistically update the state.
-			const optimisticNextQueue = taskQueue.map((t) =>
-				t.id === task.id ? { ...t, completed: !t.completed } : t
-			);
-			setTaskQueue(optimisticNextQueue);
-			// Persist the new positions (non-hero tasks) optimistically.
-			syncPositions(optimisticNextQueue, sortCriteria).catch(
-				console.error
-			);
-
-			// 2. Show a toast with an undo option.
-			setToast({
-				message: task.completed ? 'Task undone!' : 'Task complete!',
-				undoLabel: 'Undo',
-				onUndo: () => undoTaskCompletion(task, wasHero, true),
-			});
-
-			// 3. Persist the toggle to the database.
-			completeTask(task.id)
-				.then(() => {
-					// On success, do nothing to the toast.
-					emitTaskDataChanged();
-				})
-				.catch((err) => {
-					console.error('Failed to toggle task:', err);
-					// Rollback the optimistic update.
-					undoTaskCompletion(task, wasHero, false);
-					setToast({
-						message: 'Failed to toggle task. Please try again.',
-						undoLabel: undefined,
-					});
-				});
-		},
-		[taskQueue, sortCriteria, syncPositions, undoTaskCompletion]
-	);
+	const handleHeroComplete = handleCompleteTask;
+	const handleToggleTask = handleCompleteTask;
 
 	// Toggle edit mode for the Other tasks section.
 	const handleToggleEdit = useCallback(() => {
@@ -443,17 +642,34 @@ export default function HomeScreen() {
 			);
 			if (!selectedTask || selectedTask.isFocus) return;
 
-			settingHeroRef.current = true;
 			const previousHero = taskQueue.find(
 				(queueTask) => queueTask.isFocus
+			);
+			const mutationIds = [
+				selectedTask.id,
+				...(previousHero ? [previousHero.id] : []),
+			];
+			if (!beginTaskMutation(mutationIds)) {
+				setToast({ message: 'A task in this change is still updating.' });
+				return;
+			}
+
+			settingHeroRef.current = true;
+			const previousIndex = taskQueue.findIndex(
+				(queueTask) => queueTask.id === selectedTask.id
 			);
 			const remainingTasks = taskQueue.filter(
 				(queueTask) =>
 					queueTask.id !== selectedTask.id && !queueTask.isFocus
 			);
+			const focusedTask = {
+				...selectedTask,
+				isFocus: true,
+				position: null,
+			};
 			const nextQueue = sortHomeTasks(
 				[
-					{ ...selectedTask, isFocus: true, position: null },
+					focusedTask,
 					...remainingTasks,
 					...(previousHero
 						? [{ ...previousHero, isFocus: false }]
@@ -461,35 +677,84 @@ export default function HomeScreen() {
 				],
 				sortCriteria
 			);
+			taskRefreshGeneration.current += 1;
 			setTaskQueue(nextQueue);
+			if (previousHero) {
+				emitOptimisticTaskUpdate({
+					task: previousHero,
+					completedDate: null,
+					completedTime: null,
+				});
+			}
+			emitOptimisticTaskUpdate({
+				task: focusedTask,
+				completedDate: null,
+				completedTime: null,
+				previousIndex,
+			});
 
-			setHeroTask(selectedTask.id)
-				.then(() => syncPositions(nextQueue, sortCriteria))
-				.then(() => {
-					emitTaskDataChanged();
-				})
-				.catch((err) => {
+			void serializeTaskMutation(async () => {
+				try {
+					await setHeroTask(selectedTask.id);
+					await syncPositions(nextQueue, sortCriteria);
+				} catch (err) {
 					console.error('Failed to set hero task:', err);
+					setTaskQueue((current) => {
+						const selectedRollback = applyOptimisticTaskUpdate(
+							current,
+							{
+								task: { ...selectedTask, isFocus: false },
+								previousIndex,
+							},
+							sortCriteria
+						);
+						return previousHero
+							? applyOptimisticTaskUpdate(
+									selectedRollback,
+									{
+										task: previousHero,
+										previousWasFocus: true,
+									},
+									sortCriteria
+								)
+							: selectedRollback;
+					});
+					emitOptimisticTaskUpdate({
+						task: { ...selectedTask, isFocus: false },
+						completedDate: null,
+						completedTime: null,
+						previousIndex,
+					});
+					if (previousHero) {
+						emitOptimisticTaskUpdate({
+							task: previousHero,
+							completedDate: null,
+							completedTime: null,
+						});
+					}
+
+					try {
+						if (previousHero) {
+							await setHeroTask(previousHero.id);
+							const restoredQueue =
+								(await fetchPendingTaskQueue()) as HomeTask[];
+							await syncPositions(restoredQueue, sortCriteria);
+						}
+					} catch (rollbackError) {
+						console.error(
+							'Failed to restore the previous focus task:',
+							rollbackError
+						);
+					}
 					setToast({
 						message:
 							'Could not set the focused task. Please try again.',
 					});
-					return fetchPendingTaskQueue()
-						.then((tasks) => {
-							setTaskQueue(
-								sortHomeTasks(tasks as HomeTask[], sortCriteria)
-							);
-						})
-						.catch((refreshError) => {
-							console.error(
-								'Failed to refresh tasks after setting the focused task:',
-								refreshError
-							);
-						});
-				})
-				.finally(() => {
+				} finally {
+					finishTaskMutation(mutationIds);
 					settingHeroRef.current = false;
-				});
+				}
+			});
 		},
 		[taskQueue, sortCriteria, syncPositions]
 	);
@@ -531,23 +796,48 @@ export default function HomeScreen() {
 
 	// Undo a task edit: restore the pre-edit snapshot and refresh the UI.
 	const undoTaskEdit = useCallback(
-		(snapshot: TaskSnapshot) => {
-			restoreTaskSnapshot(snapshot)
-				.then(() => fetchPendingTaskQueue())
-				.then((fetchedTasks) => {
-					const nextQueue = fetchedTasks as HomeTask[];
-					setTaskQueue(nextQueue);
-					return syncPositions(nextQueue, sortCriteria).then(() => {
-						setToast({ message: 'Task restored.' });
-						emitTaskDataChanged();
-					});
-				})
-				.catch((err) => {
+		(
+			snapshot: TaskSnapshot,
+			restoreUpdate: OptimisticTaskUpdate,
+			currentUpdate: OptimisticTaskUpdate
+		) => {
+			if (!beginTaskMutation(snapshot.id)) {
+				setToast({ message: 'This task is still being updated.' });
+				return;
+			}
+			taskRefreshGeneration.current += 1;
+			setTaskQueue((current) =>
+				applyOptimisticTaskUpdate(
+					current,
+					restoreUpdate,
+					sortCriteria
+				)
+			);
+			emitOptimisticTaskUpdate(restoreUpdate);
+			void serializeTaskMutation(async () => {
+				try {
+					await restoreTaskSnapshot(snapshot);
+					if (snapshot.isFocus && snapshot.status === 'pending') {
+						await setHeroTask(snapshot.id);
+					}
+					setToast({ message: 'Task restored.' });
+				} catch (err) {
 					console.error('Failed to undo task edit:', err);
+					setTaskQueue((current) =>
+						applyOptimisticTaskUpdate(
+							current,
+							currentUpdate,
+							sortCriteria
+						)
+					);
+					emitOptimisticTaskUpdate(currentUpdate);
 					setToast({ message: 'Could not undo. Please try again.' });
-				});
+				} finally {
+					finishTaskMutation(snapshot.id);
+				}
+			});
 		},
-		[syncPositions, sortCriteria]
+		[sortCriteria]
 	);
 
 	// Confirm the edited task, then refresh the queue.
@@ -560,34 +850,117 @@ export default function HomeScreen() {
 			deadline: string | null;
 		}) => {
 			if (!editingTask) return;
+			if (!beginTaskMutation(editingTask.id)) {
+				setToast({ message: 'This task is still being updated.' });
+				return;
+			}
+			const taskToEdit =
+				taskQueue.find((task) => task.id === editingTask.id) ??
+				editingTask;
 			// Capture the task's full state before the edit so Undo can restore it.
-			const snapshot = homeTaskToSnapshot(editingTask);
+			const snapshot = homeTaskToSnapshot(taskToEdit);
+			const previousIndex = taskQueue.findIndex(
+				(task) => task.id === taskToEdit.id
+			);
+			const selectedCategory = categories.find(
+				(category) => category.cat_id === payload.cat_id
+			);
+			const wasFocus =
+				taskToEdit.isFocus ||
+				(taskQueue[0]?.id === taskToEdit.id && previousIndex === 0);
+			const updatedTask: HomeTask = {
+				...taskToEdit,
+				title: payload.title,
+				description: payload.description,
+				catId: payload.cat_id,
+				categoryName:
+					payload.cat_id === taskToEdit.catId
+						? (selectedCategory?.cat_name ??
+							taskToEdit.categoryName)
+						: (selectedCategory?.cat_name ?? null),
+				iconName:
+					selectedCategory?.iconName ??
+					(payload.cat_id === taskToEdit.catId
+						? taskToEdit.iconName
+						: getCategoryIconName(null)),
+				deadline: payload.deadline,
+				deadlineTime: null,
+				completed: payload.status === 'completed',
+				isFocus:
+					payload.status === 'pending' && taskToEdit.isFocus,
+			};
+			const completion = updatedTask.completed
+				? completionDateTime()
+				: { completedDate: null, completedTime: null };
+			const optimisticUpdate = {
+				task: updatedTask,
+				...completion,
+				previousIndex,
+				previousWasFocus: wasFocus,
+			};
+			const previousUpdate = {
+				task: taskToEdit,
+				completedDate: null,
+				completedTime: null,
+				previousIndex,
+				previousWasFocus: wasFocus,
+			};
+			taskRefreshGeneration.current += 1;
+			setTaskQueue((current) =>
+				applyOptimisticTaskUpdate(current, optimisticUpdate, sortCriteria)
+			);
+			emitOptimisticTaskUpdate(optimisticUpdate);
+			setEditModalVisible(false);
+			setEditingTask(null);
 			setSaving(true);
-			updateTreasure(editingTask.id, payload)
-				.then(() => {
-					setEditModalVisible(false);
-					setEditingTask(null);
+			void serializeTaskMutation(async () => {
+				try {
+					await updateTreasure(taskToEdit.id, payload);
 					setToast({
 						message: 'Task updated!',
 						undoLabel: 'Undo',
-						onUndo: () => undoTaskEdit(snapshot),
+						onUndo: () =>
+							undoTaskEdit(
+								snapshot,
+								previousUpdate,
+								optimisticUpdate
+							),
 					});
-					// Refetch the queue (ordered by the active sort), then re-sync
-					// positions so a status change (e.g. completed → pending) keeps the
-					// global order consistent, and notify all subscribed screens.
-					return refreshTasks().then(() => {
-						emitTaskDataChanged();
-						triggerHaptic.success(); // Successful update
-					});
-				})
-				.catch((err) => {
+					triggerHaptic.success(); // Successful update
+				} catch (err) {
 					console.error('Failed to update task:', err);
-				})
-				.finally(() => {
+					setTaskQueue((current) =>
+						applyOptimisticTaskUpdate(
+							current,
+							previousUpdate,
+							sortCriteria
+						)
+					);
+					emitOptimisticTaskUpdate(previousUpdate);
+					try {
+						await restoreTaskSnapshot(snapshot);
+					} catch (rollbackError) {
+						console.error(
+							'Failed to restore the previous task after edit:',
+							rollbackError
+						);
+					}
+					setToast({
+						message: 'Could not update the task. Please try again.',
+					});
+				} finally {
 					setSaving(false);
-				});
+					finishTaskMutation(taskToEdit.id);
+				}
+			});
 		},
-		[editingTask, refreshTasks, undoTaskEdit]
+		[
+			editingTask,
+			taskQueue,
+			categories,
+			sortCriteria,
+			undoTaskEdit,
+		]
 	);
 
 	// Open the delete confirmation for a task (edit mode → tap body → Delete).

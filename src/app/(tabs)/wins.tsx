@@ -15,7 +15,17 @@ import {
 } from '@expo-google-fonts/fredoka';
 import { useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { subscribeToTaskChanges, emitTaskDataChanged } from '@/lib/data-events';
+import {
+	beginTaskMutation,
+	emitOptimisticTaskUpdate,
+	emitTaskDataChanged,
+	finishTaskMutation,
+	isTaskMutationInProgress,
+	OptimisticTaskUpdate,
+	serializeTaskMutation,
+	subscribeToOptimisticTaskUpdates,
+	subscribeToTaskChanges,
+} from '@/lib/data-events';
 import WinsTabs, { WinsTab } from '@/components/wins_components/wins-tabs';
 import TreasureDateSection from '@/components/wins_components/treasure-date-section';
 import WinsCalendarModal from '@/components/wins_components/wins-calendar-modal';
@@ -34,9 +44,10 @@ import {
 	updateTreasure,
 	restoreTreasure,
 } from '@/features/treasures/treasures.api';
-import { TaskSnapshot } from '@/features/tasks/tasks.types';
+import { HomeTask, TaskSnapshot } from '@/features/tasks/tasks.types';
 import { restoreTaskSnapshot } from '@/features/tasks/tasks.api';
 import { triggerHaptic } from '@/utils/haptics';
+import { getCategoryIconName } from '@/utils/category-icon';
 
 /** Today's date as `YYYY-MM-DD` in local time. */
 function todayDateString(): string {
@@ -45,6 +56,106 @@ function todayDateString(): string {
 	const month = String(now.getMonth() + 1).padStart(2, '0');
 	let day = String(now.getDate()).padStart(2, '0');
 	return `${year}-${month}-${day}`;
+}
+
+function formatGroupLabel(date: string): string {
+	const [year, month, day] = date.split('-').map(Number);
+	return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+		month: 'long',
+		day: 'numeric',
+		year: 'numeric',
+	});
+}
+
+function priorityForTask(priority: string | null): HomeTask['priority'] {
+	switch (priority?.toLowerCase()) {
+		case 'high':
+			return 'high';
+		case 'medium':
+			return 'medium';
+		default:
+			return 'low';
+	}
+}
+
+function logToOptimisticUpdate(
+	log: TreasureLog,
+	categories: Category[]
+): OptimisticTaskUpdate {
+	const category = categories.find((item) => item.cat_id === log.catId);
+	const task: HomeTask = {
+		id: log.id,
+		title: log.title,
+		description: log.description,
+		catId: log.catId,
+		userId: log.userId,
+		listId: log.listId,
+		priority: priorityForTask(log.priority),
+		deadline: log.deadline,
+		deadlineTime: null,
+		categoryName: category?.cat_name ?? null,
+		createdAt: log.createdAt,
+		position: log.position,
+		isFocus: false,
+		completed: log.status === 'completed',
+		iconName:
+			category?.iconName ??
+			(log.catId ? log.iconName : getCategoryIconName(null)),
+	};
+	return {
+		task,
+		completedDate: log.completedDate || null,
+		completedTime: log.completedTime || null,
+	};
+}
+
+function applyOptimisticUpdateToGroups(
+	groups: TreasureGroup[],
+	update: OptimisticTaskUpdate
+): TreasureGroup[] {
+	const withoutTask = groups
+		.map((group) => ({
+			...group,
+			logs: group.logs.filter((log) => log.id !== update.task.id),
+		}))
+		.filter((group) => group.logs.length > 0);
+
+	if (!update.task.completed) return withoutTask;
+
+	const completedDate = update.completedDate ?? todayDateString();
+	const completedTime =
+		update.completedTime ?? new Date().toTimeString().slice(0, 8);
+	const log: TreasureLog = {
+		id: update.task.id,
+		title: update.task.title,
+		description: update.task.description,
+		catId: update.task.catId,
+		userId: update.task.userId,
+		listId: update.task.listId,
+		iconName: update.task.iconName,
+		status: 'completed',
+		deadline: update.task.deadline,
+		priority: update.task.priority,
+		position: update.task.position,
+		createdAt: update.task.createdAt,
+		completedDate,
+		completedTime,
+	};
+	const group = withoutTask.find((item) => item.date === completedDate);
+	if (group) {
+		group.logs = [...group.logs, log].sort((first, second) =>
+			second.completedTime.localeCompare(first.completedTime)
+		);
+	} else {
+		withoutTask.push({
+			date: completedDate,
+			label: formatGroupLabel(completedDate),
+			logs: [log],
+		});
+	}
+	return withoutTask.sort((first, second) =>
+		second.date.localeCompare(first.date)
+	);
 }
 
 export default function WinsScreen() {
@@ -57,6 +168,7 @@ export default function WinsScreen() {
 
 	const [activeTab, setActiveTab] = useState<WinsTab>('treasures');
 	const [groups, setGroups] = useState<TreasureGroup[]>([]);
+	const refreshGeneration = useRef(0);
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
 	const [calendarVisible, setCalendarVisible] = useState(false);
@@ -83,19 +195,41 @@ export default function WinsScreen() {
 	// Refetch the completed task logs (Treasures) + categories from Supabase.
 	// Used on focus, on pull-to-refresh, and when task data changes elsewhere.
 	const refresh = useCallback(() => {
+		if (isTaskMutationInProgress()) return Promise.resolve();
+		const generation = ++refreshGeneration.current;
 		return Promise.all([
-			fetchTreasureGroups().then((data) => {
-				setGroups(data);
+			fetchTreasureGroups().then((nextGroups) => {
+				if (
+					generation === refreshGeneration.current &&
+					!isTaskMutationInProgress()
+				) {
+					setGroups(nextGroups);
+				}
 			}),
-			fetchCategories().then((data) => {
-				setCategories(data);
+			fetchCategories().then((nextCategories) => {
+				if (
+					generation === refreshGeneration.current &&
+					!isTaskMutationInProgress()
+				) {
+					setCategories(nextCategories);
+				}
 			}),
 		])
 			.catch((err) => {
-				console.error('Failed to load treasures:', err);
+				if (
+					generation === refreshGeneration.current &&
+					!isTaskMutationInProgress()
+				) {
+					console.error('Failed to load treasures:', err);
+				}
 			})
 			.finally(() => {
-				setLoading(false);
+				if (
+					generation === refreshGeneration.current &&
+					!isTaskMutationInProgress()
+				) {
+					setLoading(false);
+				}
 			});
 	}, []);
 
@@ -127,7 +261,16 @@ export default function WinsScreen() {
 		return unsubscribe;
 	}, [refresh]);
 
-	// Handle editing a treasure's title.
+	useEffect(() => {
+		return subscribeToOptimisticTaskUpdates((update) => {
+			refreshGeneration.current += 1;
+			setGroups((current) =>
+				applyOptimisticUpdateToGroups(current, update)
+			);
+		});
+	}, []);
+
+	// Open the editor for a completed task.
 	const handleEditLog = useCallback((log: TreasureLog) => {
 		triggerHaptic.light(); // Opening treasure for editing
 		triggerHaptic.medium(); // Opening modal
@@ -135,7 +278,7 @@ export default function WinsScreen() {
 		setEditModalVisible(true);
 	}, []);
 
-	// Handle confirming the edited treasure, then refresh the logbook.
+	// Apply the edit to Wins and Home immediately, then persist it.
 	const handleConfirmEdit = useCallback(
 		(payload: {
 			status: 'completed' | 'pending';
@@ -145,60 +288,150 @@ export default function WinsScreen() {
 			deadline: string | null;
 		}) => {
 			if (!editingLog) return;
+			const logToEdit =
+				groups
+					.flatMap((group) => group.logs)
+					.find((log) => log.id === editingLog.id) ?? null;
+			if (!logToEdit) {
+				setEditModalVisible(false);
+				setEditingLog(null);
+				setToast({
+					message: 'This task has changed. Reopen it to edit.',
+				});
+				return;
+			}
+			if (!beginTaskMutation(logToEdit.id)) {
+				setToast({ message: 'This task is still being updated.' });
+				return;
+			}
 			// Capture the task's full state before the edit so Undo can restore it.
 			const snapshot: TaskSnapshot = {
-				id: editingLog.id,
-				title: editingLog.title,
-				description: editingLog.description,
-				catId: editingLog.catId,
-				listId: editingLog.listId,
-				priority: editingLog.priority,
-				deadline: editingLog.deadline,
-				status: editingLog.status,
+				id: logToEdit.id,
+				title: logToEdit.title,
+				description: logToEdit.description,
+				catId: logToEdit.catId,
+				listId: logToEdit.listId,
+				priority: logToEdit.priority,
+				deadline: logToEdit.deadline,
+				status: logToEdit.status,
 				isFocus: false,
-				position: editingLog.position,
-				completedDate: editingLog.completedDate || null,
-				completedTime: editingLog.completedTime || null,
-				createdAt: editingLog.createdAt,
+				position: logToEdit.position,
+				completedDate: logToEdit.completedDate || null,
+				completedTime: logToEdit.completedTime || null,
+				createdAt: logToEdit.createdAt,
 			};
+			const originalUpdate = logToOptimisticUpdate(
+				logToEdit,
+				categories
+			);
+			const selectedCategory = categories.find(
+				(category) => category.cat_id === payload.cat_id
+			);
+			const updatedLog: TreasureLog = {
+				...logToEdit,
+				title: payload.title,
+				description: payload.description,
+				catId: payload.cat_id,
+				iconName:
+					selectedCategory?.iconName ??
+					(payload.cat_id === logToEdit.catId
+						? logToEdit.iconName
+						: getCategoryIconName(null)),
+				deadline: payload.deadline,
+				status: payload.status,
+			};
+			const optimisticUpdate = logToOptimisticUpdate(
+				updatedLog,
+				categories
+			);
+			if (payload.status !== 'completed') {
+				optimisticUpdate.completedDate = null;
+				optimisticUpdate.completedTime = null;
+			}
+			refreshGeneration.current += 1;
+			setGroups((current) =>
+				applyOptimisticUpdateToGroups(current, optimisticUpdate)
+			);
+			emitOptimisticTaskUpdate(optimisticUpdate);
+			setEditModalVisible(false);
+			setEditingLog(null);
 			setSaving(true);
-			updateTreasure(editingLog.id, payload)
-				.then(() => {
-					setEditModalVisible(false);
-					setEditingLog(null);
+			void serializeTaskMutation(async () => {
+				try {
+					await updateTreasure(logToEdit.id, payload);
 					setToast({
 						message: 'Treasure updated!',
 						undoLabel: 'Undo',
 						onUndo: () => {
-							restoreTaskSnapshot(snapshot)
-								.then(() => fetchTreasureGroups())
-								.then((data) => {
-									setGroups(data);
-									setToast({ message: 'Treasure restored.' });
-									emitTaskDataChanged();
-								})
-								.catch((err) => {
+							if (!beginTaskMutation(logToEdit.id)) {
+								setToast({
+									message:
+										'This task is still being updated.',
+								});
+								return;
+							}
+							setGroups((current) =>
+								applyOptimisticUpdateToGroups(
+									current,
+									originalUpdate
+								)
+							);
+							emitOptimisticTaskUpdate(originalUpdate);
+							void serializeTaskMutation(async () => {
+								try {
+									await restoreTaskSnapshot(snapshot);
+									setToast({
+										message: 'Treasure restored.',
+									});
+								} catch (err) {
 									console.error(
 										'Failed to undo treasure edit:',
 										err
+									);
+									setGroups((current) =>
+										applyOptimisticUpdateToGroups(
+											current,
+											optimisticUpdate
+										)
+									);
+									emitOptimisticTaskUpdate(
+										optimisticUpdate
 									);
 									setToast({
 										message:
 											'Could not undo. Please try again.',
 									});
-								});
+								} finally {
+									finishTaskMutation(logToEdit.id);
+								}
+							});
 						},
 					});
-				})
-				.catch((err) => {
-					console.error('Failed to update treasure:', err);
-				})
-				.finally(() => {
-					setSaving(false);
 					triggerHaptic.success(); // Successful update
-				});
+				} catch (err) {
+					console.error('Failed to update treasure:', err);
+					setGroups((current) =>
+						applyOptimisticUpdateToGroups(current, originalUpdate)
+					);
+					emitOptimisticTaskUpdate(originalUpdate);
+					try {
+						await restoreTaskSnapshot(snapshot);
+					} catch (rollbackError) {
+						console.error(
+							'Failed to restore the previous treasure:',
+							rollbackError
+						);
+					}
+					setToast({
+						message: 'Could not update the task. Please try again.',
+					});
+				} finally {
+					setSaving(false);
+					finishTaskMutation(logToEdit.id);
+				}
+			});
 		},
-		[editingLog, setSaving, setEditModalVisible, setToast]
+		[editingLog, groups, categories]
 	);
 
 	// Handle tapping Delete — open the confirmation dialog (does not delete yet).
