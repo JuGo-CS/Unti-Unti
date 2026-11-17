@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 
 import { requestWidgetUpdate } from 'react-native-android-widget';
 import { fetchPendingTaskQueue } from '@/features/tasks/tasks.api';
+import { withClockSkewRetry } from '@/lib/auth-errors';
 import { supabase } from '@/lib/supabase';
 import { FOCUS_WIDGET_NAME, FocusWidget } from './focus-widget';
 import {
@@ -155,7 +156,7 @@ export async function synchronizeFocusWidget(userId: string): Promise<void> {
 	if ((await getAuthenticatedUserId()) !== userId) return;
 	if (!isCurrentRequest(userId, generation, requestId)) return;
 
-	const tasks = await fetchPendingTaskQueue();
+	const tasks = await withClockSkewRetry(fetchPendingTaskQueue);
 	if (!isCurrentRequest(userId, generation, requestId)) return;
 	if ((await getAuthenticatedUserId()) !== userId) return;
 	if (!isCurrentRequest(userId, generation, requestId)) return;

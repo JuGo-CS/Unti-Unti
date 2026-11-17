@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { withClockSkewRetry } from '@/lib/auth-errors';
 
 const PERSONAL_LIST_TITLE = 'Personal To-Do List';
 
@@ -672,6 +673,10 @@ export async function fetchCollaborativeLists(): Promise<
  * initialization so they remain part of the user's personal list.
  */
 export async function ensurePersonalList(): Promise<string> {
+	return withClockSkewRetry(resolvePersonalList);
+}
+
+async function resolvePersonalList(): Promise<string> {
 	const {
 		data: { user },
 		error: userError,

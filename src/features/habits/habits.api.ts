@@ -1,4 +1,8 @@
 import { supabase } from '../../lib/supabase';
+import {
+	isClockSkewError,
+	refreshSessionForClockSkew,
+} from '@/lib/auth-errors';
 import { HabitData } from './habits.types';
 import { getCategoryIconName } from '@/utils/category-icon';
 
@@ -63,34 +67,12 @@ export async function fetchTodayHabits(): Promise<HabitData[]> {
 
 	// Handle "JWT issued at future" error (clock skew) by refreshing the session
 	const handleAuthError = async (error: unknown, context: string) => {
-		const err = error as { message?: string; code?: string };
-		if (
-			err?.message?.includes('JWT issued at future') ||
-			err?.code === 'JWT_ISSUED_AT_FUTURE'
-		) {
-			console.warn(
-				`${context}: JWT clock skew detected, refreshing session...`
-			);
-			const {
-				data: { session },
-				error: refreshError,
-			} = await supabase.auth.refreshSession();
-			if (refreshError) {
-				console.error(
-					`${context}: Failed to refresh session:`,
-					refreshError.message
-				);
-				throw refreshError;
-			}
-			if (session) {
-				console.log(
-					`${context}: Session refreshed successfully, retrying...`
-				);
-				// Retry the original operation after refresh
-				return fetchTodayHabits();
-			}
-		}
-		throw error;
+		if (!isClockSkewError(error)) throw error;
+
+		console.warn(`${context}: JWT clock skew detected, refreshing session...`);
+		if (!(await refreshSessionForClockSkew())) throw error;
+		// Retry the original operation after refresh
+		return fetchTodayHabits();
 	};
 
 	if (habitsResult.error) {

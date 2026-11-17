@@ -1,4 +1,8 @@
 import { supabase } from '../../lib/supabase';
+import {
+	isClockSkewError,
+	refreshSessionForClockSkew,
+} from '@/lib/auth-errors';
 import { TaskItemData } from '@/components/index_components/task-item';
 import { HomeTask, HomeSortCriteria, TaskSnapshot } from './tasks.types';
 import { ensurePersonalList } from '@/features/lists/lists.api';
@@ -127,33 +131,11 @@ async function handleAuthError<T>(
 	context: string,
 	retryFn: () => Promise<T>
 ): Promise<T> {
-	const err = error as { message?: string; code?: string };
-	if (
-		err?.message?.includes('JWT issued at future') ||
-		err?.code === 'JWT_ISSUED_AT_FUTURE'
-	) {
-		console.warn(
-			`${context}: JWT clock skew detected, refreshing session...`
-		);
-		const {
-			data: { session },
-			error: refreshError,
-		} = await supabase.auth.refreshSession();
-		if (refreshError) {
-			console.error(
-				`${context}: Failed to refresh session:`,
-				refreshError.message
-			);
-			throw refreshError;
-		}
-		if (session) {
-			console.log(
-				`${context}: Session refreshed successfully, retrying...`
-			);
-			return retryFn();
-		}
-	}
-	throw error;
+	if (!isClockSkewError(error)) throw error;
+
+	console.warn(`${context}: JWT clock skew detected, refreshing session...`);
+	if (!(await refreshSessionForClockSkew())) throw error;
+	return retryFn();
 }
 
 /**

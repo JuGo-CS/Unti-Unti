@@ -20,7 +20,7 @@ export default function OfflineBanner() {
 		>
 			<Ionicons name="cloud-offline-outline" size={20} color="#FDFBF7" />
 			<Text className="ml-2 flex-1 font-fredoka-medium text-cozyBg">
-				You&apos;re offline. Some features may be unavailable.
+				You&apos;re offline. Please check your connection.
 			</Text>
 		</View>
 	);

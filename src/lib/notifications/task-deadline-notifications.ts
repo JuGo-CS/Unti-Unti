@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { fetchPendingTaskQueue } from '@/features/tasks/tasks.api';
+import { withClockSkewRetry } from '@/lib/auth-errors';
 import { getUpcomingTaskDeadlineReminders } from './task-deadline-dates';
 
 const FEATURE_KEY = 'unti-unti-task-deadline';
@@ -69,7 +70,7 @@ export async function clearTaskDeadlineNotifications(): Promise<void> {
 }
 
 async function reconcileTaskDeadlineNotifications(): Promise<void> {
-	const pendingTasks = await fetchPendingTaskQueue();
+	const pendingTasks = await withClockSkewRetry(fetchPendingTaskQueue);
 	const allScheduled =
 		await Notifications.getAllScheduledNotificationsAsync();
 	const featureScheduled = allScheduled.filter(isTaskDeadlineNotification);
