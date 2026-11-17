@@ -61,6 +61,7 @@
 					]
 				}
 			],
+			"./plugins/with-exported-widget-receiver",
 			"expo-notifications"
 		],
 		"experiments": {
