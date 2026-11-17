@@ -6,6 +6,13 @@ import type {
 
 export const FOCUS_WIDGET_NAME = 'FocusWidget';
 
+/**
+ * Shown in the widget header. Bump it whenever the widget UI changes so a
+ * glance at the home screen tells you which JS bundle is actually rendering
+ * (an OTA that never installed will keep showing the previous tag).
+ */
+export const FOCUS_WIDGET_BUILD_TAG = 'v3';
+
 const FOCUS_GREEN = '#6B8E70';
 const DEEP_GREEN = '#58785D';
 const COZY_BACKGROUND = '#FDFBF7';
@@ -129,7 +136,7 @@ export function FocusWidget({
 			>
 				<FlexWidget style={{ flex: 1, marginRight: 6 }}>
 					<TextWidget
-						text={compact ? 'YOUR FOCUS' : 'FOCUS FOR NOW'}
+						text={`${compact ? 'YOUR FOCUS' : 'FOCUS FOR NOW'} · ${FOCUS_WIDGET_BUILD_TAG}`}
 						style={{
 							fontFamily: 'Fredoka_700Bold',
 							fontSize: compact ? 11 : 13,

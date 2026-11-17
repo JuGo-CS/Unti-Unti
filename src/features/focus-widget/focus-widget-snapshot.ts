@@ -30,6 +30,15 @@ export interface FocusWidgetSnapshot {
 const FOCUS_WIDGET_SNAPSHOT_KEY = 'unti-unti:focus-widget:snapshot:v2';
 const FOCUS_WIDGET_ACCOUNT_KEY = 'unti-unti:focus-widget:account:v1';
 
+export interface FocusWidgetDiagnostics {
+	accountId: string | null;
+	hasSnapshot: boolean;
+	/** The parsed snapshot, or null when missing/invalid/for another account. */
+	snapshot: FocusWidgetSnapshot | null;
+	/** The stored snapshot JSON, used to explain why parsing failed. */
+	raw: string | null;
+}
+
 function isNullableString(value: unknown): boolean {
 	return value === undefined || value === null || typeof value === 'string';
 }
@@ -90,28 +99,41 @@ export async function writeFocusWidgetAccountId(
 }
 
 export async function readFocusWidgetSnapshot(): Promise<FocusWidgetSnapshot | null> {
-	const accountId = await readFocusWidgetAccountId();
-	if (!accountId) return null;
+	return (await readFocusWidgetDiagnostics()).snapshot;
+}
 
-	const storedSnapshot = await AsyncStorage.getItem(
-		FOCUS_WIDGET_SNAPSHOT_KEY
-	);
-	if (!storedSnapshot) return null;
+/**
+ * Read the stored snapshot together with the reason it may be unusable, so a
+ * support report can tell "never written" apart from "written but rejected".
+ */
+export async function readFocusWidgetDiagnostics(): Promise<FocusWidgetDiagnostics> {
+	const accountId = await readFocusWidgetAccountId();
+	const raw = await AsyncStorage.getItem(FOCUS_WIDGET_SNAPSHOT_KEY);
+	const diagnostics: FocusWidgetDiagnostics = {
+		accountId: accountId || null,
+		hasSnapshot: raw !== null,
+		snapshot: null,
+		raw,
+	};
+	if (!accountId || !raw) return diagnostics;
 
 	let parsedSnapshot: unknown;
 	try {
-		parsedSnapshot = JSON.parse(storedSnapshot);
+		parsedSnapshot = JSON.parse(raw);
 	} catch (error) {
 		console.warn('Invalid focus widget snapshot JSON:', error);
-		return null;
+		return diagnostics;
 	}
 
 	if (!isFocusWidgetSnapshot(parsedSnapshot)) {
 		console.warn('Invalid focus widget snapshot data.');
-		return null;
+		return diagnostics;
 	}
 
-	return parsedSnapshot.userId === accountId ? parsedSnapshot : null;
+	if (parsedSnapshot.userId !== accountId) return diagnostics;
+
+	diagnostics.snapshot = parsedSnapshot;
+	return diagnostics;
 }
 
 export async function writeFocusWidgetSnapshot(
