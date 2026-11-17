@@ -243,95 +243,92 @@ export async function fetchCategories(): Promise<Category[]> {
 /**
  * Update a completed task ("Treasure") with the edited fields.
  *
- * When the status is changed back to `pending`, the task is returned to the
- * active task queue: its completion date/time are cleared and its focus flag is
- * unset so it rejoins the queue as a normal pending task (the existing queue
- * logic in `fetchPendingTaskQueue` will order it appropriately).
+ * Reopened tasks rejoin the end of their active queue without focus. Editing an
+ * already-pending task preserves its focus and position.
  */
 export async function updateTreasure(
 	taskId: string,
 	payload: TreasureEditPayload
 ): Promise<void> {
+	const { data: currentTask, error: currentTaskError } = await supabase
+		.from('tasks')
+		.select('status, is_focus, list_id, user_id')
+		.eq('task_id', taskId)
+		.maybeSingle();
+
+	if (currentTaskError) {
+		console.error(
+			'Failed to read task before updating:',
+			currentTaskError.message
+		);
+		throw currentTaskError;
+	}
+	if (!currentTask) {
+		throw new Error('Task not found or not accessible');
+	}
+
 	const update: Record<string, unknown> = {
 		title: payload.title,
 		description: payload.description,
 		cat_id: payload.cat_id,
 		deadline: payload.deadline,
 	};
+	const wasCompleted = currentTask.status === 'completed';
 
 	if (payload.status === 'pending') {
-		// Resolve the task's list so a restored task is positioned within its
-		// list rather than in a user's combined personal/shared task queue.
-		const {
-			data: { user },
-			error: userError,
-		} = await supabase.auth.getUser();
-		if (userError || !user) {
-			console.error('Failed to get current user:', userError?.message);
-			throw new Error('User not authenticated');
-		}
-
-		const { data: task, error: taskError } = await supabase
-			.from('tasks')
-			.select('list_id, user_id')
-			.eq('task_id', taskId)
-			.maybeSingle();
-
-		if (taskError) {
-			console.error('Failed to read task list:', taskError.message);
-			throw taskError;
-		}
-		if (!task) {
-			throw new Error('Task not found or not accessible');
-		}
-
-		// Revert to pending: clear completion metadata and unset focus so the
-		// task rejoins the queue as a non-focus pending task. Assign the next
-		// position so it appends cleanly without a gap or conflict.
-		let positionQuery = supabase
-			.from('tasks')
-			.select('position')
-			.eq('status', 'pending')
-			.not('position', 'is', null);
-		positionQuery = task.list_id
-			? positionQuery.eq('list_id', task.list_id)
-			: positionQuery.eq('user_id', task.user_id ?? user.id);
-		const { data: posRows, error: posError } = await positionQuery;
-
-		if (posError) {
-			console.error('Failed to read task positions:', posError.message);
-			throw posError;
-		}
-
-		const maxPosition = (posRows ?? []).reduce(
-			(max, r) => Math.max(max, (r as { position: number }).position),
-			0
-		);
-		const nextPosition = (posRows ?? []).length > 0 ? maxPosition + 1 : 0;
-
 		update.status = 'pending';
-		update.completed_date = null;
-		update.completed_time = null;
-		update.is_focus = false;
-		update.position = nextPosition;
+		if (wasCompleted) {
+			// Reopened tasks rejoin the end of their existing queue as non-focus.
+			const {
+				data: { user },
+				error: userError,
+			} = await supabase.auth.getUser();
+			if (userError || !user) {
+				console.error('Failed to get current user:', userError?.message);
+				throw new Error('User not authenticated');
+			}
+
+			let positionQuery = supabase
+				.from('tasks')
+				.select('position')
+				.eq('status', 'pending')
+				.not('position', 'is', null);
+			positionQuery = currentTask.list_id
+				? positionQuery.eq('list_id', currentTask.list_id)
+				: positionQuery.eq(
+						'user_id',
+						currentTask.user_id ?? user.id
+					);
+			const { data: posRows, error: posError } = await positionQuery;
+
+			if (posError) {
+				console.error(
+					'Failed to read task positions:',
+					posError.message
+				);
+				throw posError;
+			}
+
+			const maxPosition = (posRows ?? []).reduce(
+				(max, row) =>
+					Math.max(max, (row as { position: number }).position),
+				0
+			);
+			update.completed_date = null;
+			update.completed_time = null;
+			update.is_focus = false;
+			update.position = (posRows ?? []).length > 0 ? maxPosition + 1 : 0;
+		} else {
+			// Editing an already-pending task must not demote its focus or move it.
+			update.is_focus = currentTask.is_focus;
+		}
 	} else {
 		update.status = 'completed';
+		update.is_focus = false;
 
 		// Only stamp a completion date/time when the task was NOT already
 		// completed — editing an existing completed task must not change its
 		// original completion timestamp.
-		const { data, error: fetchError } = await supabase
-			.from('tasks')
-			.select('status')
-			.eq('task_id', taskId)
-			.maybeSingle();
-
-		if (fetchError) {
-			console.error('Failed to read task status:', fetchError.message);
-			throw fetchError;
-		}
-
-		const wasCompleted = data?.status === 'completed';
 		if (!wasCompleted) {
 			update.completed_date = todayDateString();
 			update.completed_time = nowTimeString();
@@ -346,6 +343,62 @@ export async function updateTreasure(
 	if (error) {
 		console.error('Failed to update treasure:', error.message);
 		throw error;
+	}
+
+	if (
+		payload.status === 'completed' &&
+		!wasCompleted &&
+		currentTask.is_focus
+	) {
+		let nextTaskQuery = supabase
+			.from('tasks')
+			.select('task_id, is_focus, position, created_at')
+			.eq('status', 'pending')
+			.neq('task_id', taskId);
+		nextTaskQuery = currentTask.list_id
+			? nextTaskQuery.eq('list_id', currentTask.list_id)
+			: nextTaskQuery.eq('user_id', currentTask.user_id);
+		const { data: pendingTasks, error: pendingTasksError } =
+			await nextTaskQuery;
+
+		if (pendingTasksError) {
+			console.error(
+				'Failed to load the next focus task:',
+				pendingTasksError.message
+			);
+			throw pendingTasksError;
+		}
+
+		const orderedTasks = (pendingTasks ?? []) as {
+			task_id: string;
+			is_focus: boolean;
+			position: number | null;
+			created_at: string;
+		}[];
+		const nextTask =
+			orderedTasks.find((task) => task.is_focus) ??
+			orderedTasks.sort((first, second) => {
+				if (first.position != null && second.position != null) {
+					return first.position - second.position;
+				}
+				if (first.position != null) return -1;
+				if (second.position != null) return 1;
+				return first.created_at.localeCompare(second.created_at);
+			})[0];
+
+		if (nextTask && !nextTask.is_focus) {
+			const { error: promoteError } = await supabase
+				.from('tasks')
+				.update({ is_focus: true })
+				.eq('task_id', nextTask.task_id);
+			if (promoteError) {
+				console.error(
+					'Failed to promote the next focus task:',
+					promoteError.message
+				);
+				throw promoteError;
+			}
+		}
 	}
 
 	emitTaskDeadlineChanged();
