@@ -1,4 +1,5 @@
 import { createElement } from 'react';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 import { requestWidgetUpdate } from 'react-native-android-widget';
@@ -18,6 +19,10 @@ let activeUserId: string | null = null;
 let accountGeneration = 0;
 let latestSyncRequest = 0;
 let snapshotOperationQueue: Promise<void> = Promise.resolve();
+
+export function isFocusWidgetSupported(): boolean {
+	return Platform.OS === 'android' && Constants.expoVersion === null;
+}
 
 function serializeSnapshotOperation<T>(
 	operation: () => Promise<T>
@@ -90,6 +95,8 @@ async function requestCurrentWidgetUpdate(): Promise<void> {
 }
 
 export function setFocusWidgetAccount(userId: string | null): Promise<void> {
+	if (!isFocusWidgetSupported()) return Promise.resolve();
+
 	activeUserId = userId;
 	const generation = ++accountGeneration;
 	latestSyncRequest += 1;
@@ -125,7 +132,7 @@ export function setFocusWidgetAccount(userId: string | null): Promise<void> {
 }
 
 export async function synchronizeFocusWidget(userId: string): Promise<void> {
-	if (Platform.OS !== 'android' || activeUserId !== userId) return;
+	if (!isFocusWidgetSupported() || activeUserId !== userId) return;
 
 	const generation = accountGeneration;
 	const requestId = ++latestSyncRequest;

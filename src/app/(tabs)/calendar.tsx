@@ -16,17 +16,15 @@ import {
 import { useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { subscribeToTaskChanges, emitTaskDataChanged } from '@/lib/data-events';
-import { getHomeSortCriteria } from '@/lib/home-sort';
 import CalendarTaskCard from '@/components/calendar_components/calendar-task-card';
 import SortControl from '@/components/calendar_components/sort-control';
 import EditTreasureModal from '@/components/wins_components/edit-treasure-modal';
 import DeleteTreasureModal from '@/components/wins_components/delete-treasure-modal';
 import WinsCalendarModal from '@/components/wins_components/wins-calendar-modal';
 import Toast, { ToastData } from '@/components/ui/toast';
-import { HomeTask, HomeSortCriteria } from '@/features/tasks/tasks.types';
+import { HomeTask } from '@/features/tasks/tasks.types';
 import {
 	fetchPendingTaskQueue,
-	sortHomeTasks,
 	restoreTask,
 	restoreTaskSnapshot,
 	homeTaskToSnapshot,
@@ -36,7 +34,8 @@ import {
 import {
 	filterTasksByDate,
 	filterTasks,
-	CalendarFilterCriteria,
+	CalendarSortCriteria,
+	sortCalendarTasks,
 } from '@/features/tasks/calendar';
 import { Category, TreasureLog } from '@/features/treasures/treasures.types';
 import {
@@ -96,17 +95,14 @@ export default function CalendarScreen() {
 		Fredoka_700Bold,
 	});
 
-	// The global task queue (Home owns ordering). Calendar is a filtered view.
+	// This screen sorts a local copy of the global Home queue.
 	const [tasks, setTasks] = useState<HomeTask[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [taskError, setTaskError] = useState(false);
 	const [refreshing, setRefreshing] = useState(false);
-	// The global sort mode, owned by Home. Calendar only reflects it.
-	const [, setSortCriteria] = useState<HomeSortCriteria>('manual');
-	// Calendar's own filter (which tasks are visible). This is a local filter,
-	// NOT a global reorder — it never touches the global queue or positions.
-	const [filterCriteria, setFilterCriteria] =
-		useState<CalendarFilterCriteria>('manual');
+	const [sortCriteria, setSortCriteria] =
+		useState<CalendarSortCriteria>('manual');
+	// Optional filters are applied after sorting and remain local to this view.
 	const [filterValue, setFilterValue] = useState<string | null>(null);
 	// Date picker for the "Deadline" / "Time Added" filter value.
 	const [filterDatePickerVisible, setFilterDatePickerVisible] =
@@ -127,17 +123,15 @@ export default function CalendarScreen() {
 	// Success toast feedback for complete/edit/delete actions.
 	const [toast, setToast] = useState<ToastData | null>(null);
 
-	// Refetch the global queue from Supabase, apply the current Home sort mode,
-	// then apply the date filter. Calendar is a filtered view of the global
-	// queue — it never reorders, re-sorts, or modifies positions. The task
-	// filter is applied separately in the render so changing it doesn't refetch.
+	// Fetch the queue's manual order and filter it to the selected date. Sorting
+	// and optional filters are applied to local arrays in the render.
 	const refreshTasks = useCallback(() => {
 		setTaskError(false); // reset error at start of fetch
-		return Promise.all([fetchPendingTaskQueue(), getHomeSortCriteria()])
-			.then(([queue, sortMode]) => {
-				setSortCriteria(sortMode);
-				const sorted = sortHomeTasks(queue as HomeTask[], sortMode);
-				setTasks(filterTasksByDate(sorted, selectedDate));
+		return fetchPendingTaskQueue()
+			.then((queue) => {
+				setTasks(
+					filterTasksByDate(queue as HomeTask[], selectedDate)
+				);
 			})
 			.catch((err) => {
 				console.error('Failed to load tasks for date:', err);
@@ -373,12 +367,11 @@ export default function CalendarScreen() {
 		});
 	}, [refreshing, refreshTasks]);
 
-	// Change the Calendar filter criterion. Resets the filter value, since the
-	// previous value may not apply to the new criterion.
-	const handleChangeFilterCriteria = useCallback(
-		(criteria: CalendarFilterCriteria) => {
+	// Change the view sort and clear any value-specific filter.
+	const handleChangeSortCriteria = useCallback(
+		(criteria: CalendarSortCriteria) => {
 			triggerHaptic.light(); // Filter/sort change
-			setFilterCriteria(criteria);
+			setSortCriteria(criteria);
 			setFilterValue(null);
 		},
 		[]
@@ -389,10 +382,12 @@ export default function CalendarScreen() {
 		setFilterValue(value);
 	}, []);
 
-	// Apply the Calendar filter to the date-filtered tasks, preserving the
-	// global order. This is a local view filter — it never reorders or modifies
-	// the global queue.
-	const filteredTasks = filterTasks(tasks, filterCriteria, filterValue);
+	const sortedTasks = sortCalendarTasks(tasks, sortCriteria);
+	const filteredTasks = filterTasks(
+		sortedTasks,
+		sortCriteria,
+		filterValue
+	);
 
 	if (!fontsLoaded) {
 		return null;
@@ -448,11 +443,11 @@ export default function CalendarScreen() {
 					</TouchableOpacity>
 				</View>
 
-				{/* Filter control header — filters which tasks are visible */}
+				{/* View sort control */}
 				<View className="flex-row items-center justify-between mt-8 mb-4">
 					<SortControl
-						criteria={filterCriteria}
-						onChangeCriteria={handleChangeFilterCriteria}
+						criteria={sortCriteria}
+						onChangeCriteria={handleChangeSortCriteria}
 					/>
 					<TouchableOpacity
 						onPress={() => setEditMode((prev) => !prev)}
@@ -467,10 +462,14 @@ export default function CalendarScreen() {
 					</TouchableOpacity>
 				</View>
 
-				{/* Filter value selector — only shown when a value is required */}
-				{filterCriteria !== 'manual' && (
+				{/* Optional value filter, applied after the view-level sort */}
+				{(sortCriteria === 'category' ||
+					sortCriteria === 'priority') && (
 					<View className="mb-4">
-						{filterCriteria === 'category' && (
+						<Text className="text-sm font-fredoka-medium text-mutedBrown mb-2">
+							Optional filter
+						</Text>
+						{sortCriteria === 'category' && (
 							<View className="flex-row flex-wrap">
 								{categories.map((cat) => {
 									const selected =
@@ -506,7 +505,7 @@ export default function CalendarScreen() {
 								})}
 							</View>
 						)}
-						{filterCriteria === 'priority' && (
+						{sortCriteria === 'priority' && (
 							<View className="flex-row">
 								{(['high', 'medium', 'low'] as const).map(
 									(p) => {
@@ -561,7 +560,7 @@ export default function CalendarScreen() {
 						<CalendarTaskCard
 							key={task.id}
 							task={task}
-							filterCriteria={filterCriteria}
+							filterCriteria={sortCriteria}
 							queuePosition={index + 1}
 							editMode={editMode}
 							onToggle={handleCompleteTask}

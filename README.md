@@ -145,7 +145,7 @@ The read-only Android home-screen widget shows the current personal Home task, i
 
 The widget uses a local snapshot refreshed when the app launches, returns to the foreground, or receives a successful task-change event. A failed fetch keeps the last valid snapshot for the same account. Signing out or switching accounts clears the prior account's snapshot. The widget does not poll in the background and can remain stale when tasks change elsewhere until the app synchronizes again.
 
-The native widget requires an Android development or EAS build; Expo Go and an OTA update to an older binary are not sufficient. For an installable preview build, run `npx eas-cli@latest build --profile preview --platform android`.
+The native widget requires an Android development or EAS build; Expo Go does not include its native module, so widget synchronization is skipped there. An OTA update to an older binary is not sufficient. For an installable preview build, run `npx eas-cli@latest build --profile preview --platform android`.
 
 ---
 
