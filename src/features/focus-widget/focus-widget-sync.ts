@@ -1,10 +1,8 @@
 import { createElement } from 'react';
-import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 import { requestWidgetUpdate } from 'react-native-android-widget';
 import { fetchPendingTaskQueue } from '@/features/tasks/tasks.api';
-import { withClockSkewRetry } from '@/lib/auth-errors';
 import { supabase } from '@/lib/supabase';
 import { FOCUS_WIDGET_NAME, FocusWidget } from './focus-widget';
 import {
@@ -20,11 +18,6 @@ let activeUserId: string | null = null;
 let accountGeneration = 0;
 let latestSyncRequest = 0;
 let snapshotOperationQueue: Promise<void> = Promise.resolve();
-
-/** The widget's native module is unavailable in Expo Go. */
-export function isFocusWidgetSupported(): boolean {
-	return Platform.OS === 'android' && Constants.expoVersion === null;
-}
 
 function serializeSnapshotOperation<T>(
 	operation: () => Promise<T>
@@ -70,12 +63,6 @@ function snapshotsEqual(
 		left.userId === right.userId &&
 		left.focusTaskId === right.focusTaskId &&
 		left.focusTaskTitle === right.focusTaskTitle &&
-		(left.focusTaskDescription ?? null) ===
-			(right.focusTaskDescription ?? null) &&
-		(left.focusTaskDeadline ?? null) ===
-			(right.focusTaskDeadline ?? null) &&
-		(left.focusTaskDeadlineTime ?? null) ===
-			(right.focusTaskDeadlineTime ?? null) &&
 		left.remainingTaskCount === right.remainingTaskCount
 	);
 }
@@ -93,8 +80,6 @@ async function requestCurrentWidgetUpdate(): Promise<void> {
 }
 
 export function setFocusWidgetAccount(userId: string | null): Promise<void> {
-	if (!isFocusWidgetSupported()) return Promise.resolve();
-
 	activeUserId = userId;
 	const generation = ++accountGeneration;
 	latestSyncRequest += 1;
@@ -130,7 +115,7 @@ export function setFocusWidgetAccount(userId: string | null): Promise<void> {
 }
 
 export async function synchronizeFocusWidget(userId: string): Promise<void> {
-	if (!isFocusWidgetSupported() || activeUserId !== userId) return;
+	if (Platform.OS !== 'android' || activeUserId !== userId) return;
 
 	const generation = accountGeneration;
 	const requestId = ++latestSyncRequest;
@@ -138,7 +123,7 @@ export async function synchronizeFocusWidget(userId: string): Promise<void> {
 	if ((await getAuthenticatedUserId()) !== userId) return;
 	if (!isCurrentRequest(userId, generation, requestId)) return;
 
-	const tasks = await withClockSkewRetry(fetchPendingTaskQueue);
+	const tasks = await fetchPendingTaskQueue();
 	if (!isCurrentRequest(userId, generation, requestId)) return;
 	if ((await getAuthenticatedUserId()) !== userId) return;
 	if (!isCurrentRequest(userId, generation, requestId)) return;
@@ -149,9 +134,6 @@ export async function synchronizeFocusWidget(userId: string): Promise<void> {
 		userId,
 		focusTaskId: focusTask?.id ?? null,
 		focusTaskTitle: focusTask?.title ?? null,
-		focusTaskDescription: focusTask?.description ?? null,
-		focusTaskDeadline: focusTask?.deadline ?? null,
-		focusTaskDeadlineTime: focusTask?.deadlineTime ?? null,
 		remainingTaskCount: focusTask ? tasks.length - 1 : 0,
 	};
 

@@ -5,19 +5,11 @@ export interface FocusWidgetSnapshot {
 	userId: string;
 	focusTaskId: string | null;
 	focusTaskTitle: string | null;
-	/** Optional display details for the focus card. */
-	focusTaskDescription?: string | null;
-	focusTaskDeadline?: string | null;
-	focusTaskDeadlineTime?: string | null;
 	remainingTaskCount: number;
 }
 
 const FOCUS_WIDGET_SNAPSHOT_KEY = 'unti-unti:focus-widget:snapshot:v1';
 const FOCUS_WIDGET_ACCOUNT_KEY = 'unti-unti:focus-widget:account:v1';
-
-function isNullableString(value: unknown): boolean {
-	return value === undefined || value === null || typeof value === 'string';
-}
 
 function isFocusWidgetSnapshot(value: unknown): value is FocusWidgetSnapshot {
 	if (typeof value !== 'object' || value === null) return false;
@@ -28,18 +20,12 @@ function isFocusWidgetSnapshot(value: unknown): value is FocusWidgetSnapshot {
 		typeof snapshot.focusTaskTitle === 'string';
 	const hasNoFocusTask =
 		snapshot.focusTaskId === null && snapshot.focusTaskTitle === null;
-	const hasValidTaskDetails = [
-		snapshot.focusTaskDescription,
-		snapshot.focusTaskDeadline,
-		snapshot.focusTaskDeadlineTime,
-	].every(isNullableString);
 
 	return (
 		snapshot.schemaVersion === 1 &&
 		typeof snapshot.userId === 'string' &&
 		snapshot.userId.length > 0 &&
 		(hasFocusTask || hasNoFocusTask) &&
-		hasValidTaskDetails &&
 		typeof snapshot.remainingTaskCount === 'number' &&
 		Number.isSafeInteger(snapshot.remainingTaskCount) &&
 		snapshot.remainingTaskCount >= 0 &&
