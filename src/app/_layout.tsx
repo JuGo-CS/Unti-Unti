@@ -9,7 +9,7 @@ import {
 import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { ActivityIndicator, AppState, View } from 'react-native';
+import { ActivityIndicator, AppState, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import OfflineBanner from '@/components/ui/offline-banner';
 import {
@@ -21,7 +21,6 @@ import {
 	synchronizeTaskDeadlineNotifications,
 } from '@/lib/notifications/task-deadline-notifications';
 import {
-	isFocusWidgetSupported,
 	setFocusWidgetAccount,
 	synchronizeFocusWidget,
 } from '@/features/focus-widget/focus-widget-sync';
@@ -99,7 +98,7 @@ function RootNavigator() {
 	}, [isLoading, userId]);
 
 	useEffect(() => {
-		if (isLoading || !isFocusWidgetSupported()) return;
+		if (isLoading || Platform.OS !== 'android') return;
 
 		const authenticatedUserId = userId ?? null;
 		const accountReady = setFocusWidgetAccount(authenticatedUserId);

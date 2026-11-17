@@ -28,13 +28,7 @@ export async function focusWidgetTaskHandler(
 					error
 				);
 			}
-			props.renderWidget(
-				<FocusWidget
-					snapshot={snapshot}
-					widgetWidth={props.widgetInfo.width}
-					widgetHeight={props.widgetInfo.height}
-				/>
-			);
+			props.renderWidget(<FocusWidget snapshot={snapshot} />);
 			return;
 		}
 		case 'WIDGET_CLICK':

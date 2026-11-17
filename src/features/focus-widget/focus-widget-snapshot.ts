@@ -1,59 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-/**
- * A task as shown on the widget. The widget never talks to Supabase, so the
- * main app mirrors the whole pending queue here — that way a stale or partial
- * snapshot can never make the widget claim "All done" while tasks remain.
- */
-export interface FocusWidgetTask {
-	id: string;
-	title: string;
-	description: string | null;
-	deadline: string | null;
-	deadlineTime: string | null;
-}
-
 export interface FocusWidgetSnapshot {
-	schemaVersion: 2;
+	schemaVersion: 1;
 	userId: string;
 	focusTaskId: string | null;
 	focusTaskTitle: string | null;
+	/** Optional display details for the focus card. */
 	focusTaskDescription?: string | null;
 	focusTaskDeadline?: string | null;
 	focusTaskDeadlineTime?: string | null;
-	/** Number of pending tasks left after the focus task. */
 	remainingTaskCount: number;
-	/** The pending queue in display order (the focus task included). */
-	tasks: FocusWidgetTask[];
 }
 
-const FOCUS_WIDGET_SNAPSHOT_KEY = 'unti-unti:focus-widget:snapshot:v2';
+const FOCUS_WIDGET_SNAPSHOT_KEY = 'unti-unti:focus-widget:snapshot:v1';
 const FOCUS_WIDGET_ACCOUNT_KEY = 'unti-unti:focus-widget:account:v1';
-
-export interface FocusWidgetDiagnostics {
-	accountId: string | null;
-	hasSnapshot: boolean;
-	/** The parsed snapshot, or null when missing/invalid/for another account. */
-	snapshot: FocusWidgetSnapshot | null;
-	/** The stored snapshot JSON, used to explain why parsing failed. */
-	raw: string | null;
-}
 
 function isNullableString(value: unknown): boolean {
 	return value === undefined || value === null || typeof value === 'string';
-}
-
-function isFocusWidgetTask(value: unknown): value is FocusWidgetTask {
-	if (typeof value !== 'object' || value === null) return false;
-
-	const task = value as Record<string, unknown>;
-	return (
-		typeof task.id === 'string' &&
-		typeof task.title === 'string' &&
-		isNullableString(task.description) &&
-		isNullableString(task.deadline) &&
-		isNullableString(task.deadlineTime)
-	);
 }
 
 function isFocusWidgetSnapshot(value: unknown): value is FocusWidgetSnapshot {
@@ -70,10 +33,9 @@ function isFocusWidgetSnapshot(value: unknown): value is FocusWidgetSnapshot {
 		snapshot.focusTaskDeadline,
 		snapshot.focusTaskDeadlineTime,
 	].every(isNullableString);
-	const tasks = snapshot.tasks;
 
 	return (
-		snapshot.schemaVersion === 2 &&
+		snapshot.schemaVersion === 1 &&
 		typeof snapshot.userId === 'string' &&
 		snapshot.userId.length > 0 &&
 		(hasFocusTask || hasNoFocusTask) &&
@@ -81,10 +43,7 @@ function isFocusWidgetSnapshot(value: unknown): value is FocusWidgetSnapshot {
 		typeof snapshot.remainingTaskCount === 'number' &&
 		Number.isSafeInteger(snapshot.remainingTaskCount) &&
 		snapshot.remainingTaskCount >= 0 &&
-		Array.isArray(tasks) &&
-		tasks.every(isFocusWidgetTask) &&
-		// A focus task must exist exactly when the mirrored queue is not empty.
-		(hasFocusTask ? tasks.length > 0 : tasks.length === 0)
+		(hasFocusTask || snapshot.remainingTaskCount === 0)
 	);
 }
 
@@ -99,41 +58,28 @@ export async function writeFocusWidgetAccountId(
 }
 
 export async function readFocusWidgetSnapshot(): Promise<FocusWidgetSnapshot | null> {
-	return (await readFocusWidgetDiagnostics()).snapshot;
-}
-
-/**
- * Read the stored snapshot together with the reason it may be unusable, so a
- * support report can tell "never written" apart from "written but rejected".
- */
-export async function readFocusWidgetDiagnostics(): Promise<FocusWidgetDiagnostics> {
 	const accountId = await readFocusWidgetAccountId();
-	const raw = await AsyncStorage.getItem(FOCUS_WIDGET_SNAPSHOT_KEY);
-	const diagnostics: FocusWidgetDiagnostics = {
-		accountId: accountId || null,
-		hasSnapshot: raw !== null,
-		snapshot: null,
-		raw,
-	};
-	if (!accountId || !raw) return diagnostics;
+	if (!accountId) return null;
+
+	const storedSnapshot = await AsyncStorage.getItem(
+		FOCUS_WIDGET_SNAPSHOT_KEY
+	);
+	if (!storedSnapshot) return null;
 
 	let parsedSnapshot: unknown;
 	try {
-		parsedSnapshot = JSON.parse(raw);
+		parsedSnapshot = JSON.parse(storedSnapshot);
 	} catch (error) {
 		console.warn('Invalid focus widget snapshot JSON:', error);
-		return diagnostics;
+		return null;
 	}
 
 	if (!isFocusWidgetSnapshot(parsedSnapshot)) {
 		console.warn('Invalid focus widget snapshot data.');
-		return diagnostics;
+		return null;
 	}
 
-	if (parsedSnapshot.userId !== accountId) return diagnostics;
-
-	diagnostics.snapshot = parsedSnapshot;
-	return diagnostics;
+	return parsedSnapshot.userId === accountId ? parsedSnapshot : null;
 }
 
 export async function writeFocusWidgetSnapshot(

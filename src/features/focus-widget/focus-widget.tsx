@@ -1,17 +1,7 @@
 import { FlexWidget, TextWidget } from 'react-native-android-widget';
-import type {
-	FocusWidgetSnapshot,
-	FocusWidgetTask,
-} from './focus-widget-snapshot';
+import type { FocusWidgetSnapshot } from './focus-widget-snapshot';
 
 export const FOCUS_WIDGET_NAME = 'FocusWidget';
-
-/**
- * Shown in the widget header. Bump it whenever the widget UI changes so a
- * glance at the home screen tells you which JS bundle is actually rendering
- * (an OTA that never installed will keep showing the previous tag).
- */
-export const FOCUS_WIDGET_BUILD_TAG = 'v3';
 
 const FOCUS_GREEN = '#6B8E70';
 const DEEP_GREEN = '#58785D';
@@ -19,11 +9,11 @@ const COZY_BACKGROUND = '#FDFBF7';
 const DEEP_BROWN = '#2C221E';
 const MUTED_BROWN = '#7D6E6B';
 const SOFT_GREEN = '#E2EBE2';
+const PILL_BACKGROUND = 'rgba(255, 255, 255, 0.22)';
+const DIVIDER = 'rgba(255, 255, 255, 0.45)';
 
 interface FocusWidgetProps {
 	snapshot: FocusWidgetSnapshot | null;
-	widgetWidth: number;
-	widgetHeight: number;
 }
 
 function formatDeadline(
@@ -63,52 +53,27 @@ function formatDeadline(
 }
 
 /**
- * Resolve what the widget shows from the mirrored queue.
+ * Widget layout.
  *
- * The queue is the source of truth: the focus task is the one the snapshot
- * flags (or the head of the queue), and the next task is the first remaining
- * one. "All done" is only shown when the queue itself is empty, so a missing
- * focus id can never hide pending tasks.
+ * Rendered by react-native-android-widget as real Android views
+ * (LinearLayout/TextView), not RemoteViews. Two rules keep it from collapsing:
+ *
+ * 1. A vertical child must never use `flex: 1` — the library maps it to
+ *    `layout_weight`, which makes the child 0dp tall when the parent's height is
+ *    itself WRAP_CONTENT. The root is MATCH_PARENT so only it may use `flex`.
+ * 2. `justifyContent` on a column maps to vertical gravity, so `center` shifts
+ *    content out of the visible area once it is taller than the widget.
+ *
+ * `scripts/render-widget.mjs` reproduces these rules to check the layout.
  */
-function resolveWidgetTasks(snapshot: FocusWidgetSnapshot | null): {
-	focusTask: FocusWidgetTask | null;
-	nextTask: FocusWidgetTask | null;
-} {
-	const tasks = snapshot?.tasks ?? [];
-	const focusTask =
-		(snapshot?.focusTaskId
-			? tasks.find((task) => task.id === snapshot.focusTaskId)
-			: undefined) ??
-		tasks[0] ??
-		null;
-	const nextTask = tasks.find((task) => task.id !== focusTask?.id) ?? null;
-	return { focusTask, nextTask };
-}
-
-export function FocusWidget({
-	snapshot,
-	widgetWidth,
-	widgetHeight,
-}: FocusWidgetProps) {
-	const { focusTask, nextTask } = resolveWidgetTasks(snapshot);
-	const remainingTaskCount =
-		snapshot?.remainingTaskCount ??
-		(snapshot?.tasks ? Math.max(0, snapshot.tasks.length - 1) : 0);
-	const focusDescription = focusTask?.description?.trim() || null;
+export function FocusWidget({ snapshot }: FocusWidgetProps) {
+	const focusTitle = snapshot?.focusTaskTitle ?? null;
+	const focusDescription = snapshot?.focusTaskDescription?.trim() || null;
 	const deadlineLabel = formatDeadline(
-		focusTask?.deadline,
-		focusTask?.deadlineTime
+		snapshot?.focusTaskDeadline,
+		snapshot?.focusTaskDeadlineTime
 	);
-	// Defensive: ensure valid dimensions, default to non-compact if invalid
-	const validWidth = widgetWidth > 0 ? widgetWidth : 300;
-	const validHeight = widgetHeight > 0 ? widgetHeight : 200;
-	const compact = validWidth < 220 || validHeight < 150;
-	const showDescription = Boolean(
-		focusDescription && (!compact || !deadlineLabel)
-	);
-	const showDeadline = Boolean(
-		deadlineLabel && (compact || !focusDescription)
-	);
+	const remainingTaskCount = snapshot?.remainingTaskCount ?? 0;
 
 	return (
 		<FlexWidget
@@ -118,8 +83,8 @@ export function FocusWidget({
 				flexDirection: 'column',
 				width: 'match_parent',
 				height: 'match_parent',
-				padding: compact ? 9 : 14,
-				borderRadius: compact ? 23 : 28,
+				padding: 16,
+				borderRadius: 24,
 				backgroundGradient: {
 					from: FOCUS_GREEN,
 					to: DEEP_GREEN,
@@ -129,18 +94,25 @@ export function FocusWidget({
 		>
 			<FlexWidget
 				style={{
+					width: 'match_parent',
 					flexDirection: 'row',
 					alignItems: 'center',
 					justifyContent: 'space-between',
 				}}
 			>
-				<FlexWidget style={{ flex: 1, marginRight: 6 }}>
+				<FlexWidget
+					style={{
+						flex: 1,
+						flexDirection: 'column',
+						alignItems: 'flex-start',
+						marginRight: 8,
+					}}
+				>
 					<TextWidget
-						text={`${compact ? 'YOUR FOCUS' : 'FOCUS FOR NOW'} · ${FOCUS_WIDGET_BUILD_TAG}`}
+						text="Focus for now:"
 						style={{
 							fontFamily: 'Fredoka_700Bold',
-							fontSize: compact ? 11 : 13,
-							letterSpacing: compact ? 0.5 : 0.8,
+							fontSize: 18,
 							color: COZY_BACKGROUND,
 						}}
 						allowFontScaling={false}
@@ -148,20 +120,20 @@ export function FocusWidget({
 						truncate="END"
 					/>
 				</FlexWidget>
-				{focusTask && remainingTaskCount > 0 ? (
+				{focusTitle && remainingTaskCount > 0 ? (
 					<FlexWidget
 						style={{
-							paddingHorizontal: compact ? 7 : 9,
-							paddingVertical: compact ? 3 : 5,
-							borderRadius: 14,
-							backgroundColor: 'rgba(255, 255, 255, 0.2)',
+							paddingHorizontal: 10,
+							paddingVertical: 4,
+							borderRadius: 12,
+							backgroundColor: PILL_BACKGROUND,
 						}}
 					>
 						<TextWidget
 							text={`+${remainingTaskCount} left`}
 							style={{
 								fontFamily: 'Fredoka_500Medium',
-								fontSize: compact ? 10 : 12,
+								fontSize: 12,
 								color: COZY_BACKGROUND,
 							}}
 							allowFontScaling={false}
@@ -174,164 +146,119 @@ export function FocusWidget({
 			<FlexWidget
 				style={{
 					width: 'match_parent',
-					height: 1,
-					marginTop: compact ? 5 : 8,
-					backgroundColor: 'rgba(255, 255, 255, 0.42)',
+					height: 2,
+					marginTop: 8,
+					borderRadius: 1,
+					backgroundColor: DIVIDER,
 				}}
 			/>
 
-			<FlexWidget
-				style={{
-					flex: 1,
-					flexDirection: 'column',
-					marginTop: compact ? 6 : 10,
-					paddingHorizontal: compact ? 9 : 14,
-					paddingVertical: compact ? 6 : 12,
-					borderRadius: compact ? 16 : 20,
-					backgroundColor: COZY_BACKGROUND,
-				}}
-			>
+			{focusTitle ? (
 				<FlexWidget
 					style={{
-						flex: 1,
 						flexDirection: 'column',
-						justifyContent: 'center',
-					}}
-				>
-					{focusTask ? (
-						<FlexWidget
-							style={{
-								flexDirection: 'column',
-							}}
-						>
-							<TextWidget
-								text={focusTask.title}
-								style={{
-									fontFamily: 'Fredoka_700Bold',
-									fontSize: compact ? 16 : 20,
-									lineHeight: compact ? 19 : 24,
-									color: DEEP_BROWN,
-								}}
-								allowFontScaling={false}
-								maxLines={2}
-								truncate="END"
-							/>
-							{showDescription ? (
-								<TextWidget
-									text={focusDescription ?? ''}
-									style={{
-										marginTop: compact ? 2 : 5,
-										fontFamily: 'Fredoka_500Medium',
-										fontSize: compact ? 11 : 14,
-										lineHeight: compact ? 13 : 18,
-										color: MUTED_BROWN,
-									}}
-									allowFontScaling={false}
-									maxLines={compact ? 1 : 2}
-									truncate="END"
-								/>
-							) : null}
-							{showDeadline ? (
-								<FlexWidget
-									style={{
-										alignItems: 'flex-start',
-										marginTop: compact ? 3 : 7,
-									}}
-								>
-									<FlexWidget
-										style={{
-											paddingHorizontal: compact ? 7 : 9,
-											paddingVertical: compact ? 3 : 4,
-											borderRadius: 12,
-											backgroundColor: SOFT_GREEN,
-										}}
-									>
-										<TextWidget
-											text={deadlineLabel ?? ''}
-											style={{
-												fontFamily: 'Fredoka_500Medium',
-												fontSize: compact ? 10 : 12,
-												color: DEEP_GREEN,
-											}}
-											allowFontScaling={false}
-											maxLines={1}
-											truncate="END"
-										/>
-									</FlexWidget>
-								</FlexWidget>
-							) : null}
-						</FlexWidget>
-					) : (
-						<FlexWidget
-							style={{
-								flexDirection: 'column',
-							}}
-						>
-							<TextWidget
-								text="All done for now!"
-								style={{
-									fontFamily: 'Fredoka_700Bold',
-									fontSize: compact ? 16 : 20,
-									lineHeight: compact ? 19 : 24,
-									color: DEEP_BROWN,
-								}}
-								allowFontScaling={false}
-								maxLines={1}
-								truncate="END"
-							/>
-							<TextWidget
-								text="Take a little breather."
-								style={{
-									marginTop: compact ? 2 : 5,
-									fontFamily: 'Fredoka_500Medium',
-									fontSize: compact ? 11 : 14,
-									lineHeight: compact ? 13 : 18,
-									color: MUTED_BROWN,
-								}}
-								allowFontScaling={false}
-								maxLines={1}
-								truncate="END"
-							/>
-						</FlexWidget>
-					)}
-				</FlexWidget>
-			</FlexWidget>
-
-			{nextTask && !compact ? (
-				<FlexWidget
-					style={{
-						flexDirection: 'row',
-						alignItems: 'center',
-						marginTop: 8,
-						paddingHorizontal: 4,
+						marginTop: 10,
+						paddingHorizontal: 14,
+						paddingVertical: 12,
+						borderRadius: 18,
+						backgroundColor: COZY_BACKGROUND,
 					}}
 				>
 					<TextWidget
-						text="Next:"
+						text={focusTitle}
 						style={{
-							marginRight: 6,
-							fontFamily: 'Fredoka_500Medium',
-							fontSize: 11,
-							color: 'rgba(253, 251, 247, 0.78)',
+							fontFamily: 'Fredoka_700Bold',
+							fontSize: 19,
+							lineHeight: 23,
+							color: DEEP_BROWN,
+						}}
+						allowFontScaling={false}
+						maxLines={2}
+						truncate="END"
+					/>
+					{focusDescription ? (
+						<TextWidget
+							text={focusDescription}
+							style={{
+								marginTop: 4,
+								fontFamily: 'Fredoka_500Medium',
+								fontSize: 13,
+								lineHeight: 17,
+								color: MUTED_BROWN,
+							}}
+							allowFontScaling={false}
+							maxLines={2}
+							truncate="END"
+						/>
+					) : null}
+					{deadlineLabel ? (
+						<FlexWidget
+							style={{
+								alignItems: 'flex-start',
+								marginTop: 8,
+							}}
+						>
+							<FlexWidget
+								style={{
+									paddingHorizontal: 9,
+									paddingVertical: 4,
+									borderRadius: 10,
+									backgroundColor: SOFT_GREEN,
+								}}
+							>
+								<TextWidget
+									text={deadlineLabel}
+									style={{
+										fontFamily: 'Fredoka_500Medium',
+										fontSize: 12,
+										color: DEEP_GREEN,
+									}}
+									allowFontScaling={false}
+									maxLines={1}
+									truncate="END"
+								/>
+							</FlexWidget>
+						</FlexWidget>
+					) : null}
+				</FlexWidget>
+			) : (
+				<FlexWidget
+					style={{
+						flexDirection: 'column',
+						marginTop: 10,
+						paddingHorizontal: 14,
+						paddingVertical: 14,
+						borderRadius: 18,
+						backgroundColor: COZY_BACKGROUND,
+					}}
+				>
+					<TextWidget
+						text="All done for now!"
+						style={{
+							fontFamily: 'Fredoka_700Bold',
+							fontSize: 19,
+							lineHeight: 23,
+							color: DEEP_BROWN,
 						}}
 						allowFontScaling={false}
 						maxLines={1}
+						truncate="END"
 					/>
-					<FlexWidget style={{ flex: 1 }}>
-						<TextWidget
-							text={nextTask.title}
-							style={{
-								fontFamily: 'Fredoka_500Medium',
-								fontSize: 12,
-								color: COZY_BACKGROUND,
-							}}
-							allowFontScaling={false}
-							maxLines={1}
-							truncate="END"
-						/>
-					</FlexWidget>
+					<TextWidget
+						text="Take a little breather."
+						style={{
+							marginTop: 4,
+							fontFamily: 'Fredoka_500Medium',
+							fontSize: 13,
+							lineHeight: 17,
+							color: MUTED_BROWN,
+						}}
+						allowFontScaling={false}
+						maxLines={1}
+						truncate="END"
+					/>
 				</FlexWidget>
-			) : null}
+			)}
 		</FlexWidget>
 	);
 }
