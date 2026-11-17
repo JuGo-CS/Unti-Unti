@@ -124,8 +124,8 @@ async function reconcileTaskDeadlineNotifications(): Promise<void> {
 
 		await Notifications.scheduleNotificationAsync({
 			content: {
-				title: 'A little reminder 🌱',
-				body: "Hey! Tomorrow, you have a task that needs to be finished. You've got this!",
+				title: 'A little reminder ☀️',
+				body: "Just a heads-up! Something's coming up tomorrow.",
 				sound: false,
 				data: {
 					feature: FEATURE_KEY,
