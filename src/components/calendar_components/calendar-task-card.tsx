@@ -63,8 +63,7 @@ function formatTime(timeStr: string | null): string {
 /** Format a deadline into "Sep 12, 2026 @ 5:00 P.M." (or just the date if no time). */
 function formatDeadline(task: HomeTask): string {
 	const datePart = formatDate(task.deadline);
-	const timePart = formatTime(task.deadlineTime);
-	return timePart ? `${datePart} @ ${timePart}` : datePart;
+	return datePart;
 }
 
 /** Format a `created_at` timestamp into a short friendly label like "Sep 9, 2026". */

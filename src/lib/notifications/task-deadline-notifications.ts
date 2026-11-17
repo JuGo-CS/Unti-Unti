@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { fetchPendingTaskQueue } from '@/features/tasks/tasks.api';
 import { getUpcomingTaskDeadlineReminders } from './task-deadline-dates';
@@ -8,6 +9,9 @@ const ANDROID_CHANNEL_ID = 'task-deadline-reminders';
 const IOS_PENDING_LIMIT = 64;
 const ANDROID_PENDING_LIMIT = 500;
 const RESERVED_PENDING_SLOTS = 4;
+// Expo Go has a host-owned default channel but may lack its channel manager.
+const isExpoGoAndroid =
+	Platform.OS === 'android' && Constants.expoVersion !== null;
 
 if (Platform.OS !== 'web') {
 	Notifications.setNotificationHandler({
@@ -136,7 +140,7 @@ async function reconcileTaskDeadlineNotifications(): Promise<void> {
 			trigger: {
 				type: Notifications.SchedulableTriggerInputTypes.DATE,
 				date: triggerAt,
-				...(Platform.OS === 'android'
+				...(Platform.OS === 'android' && !isExpoGoAndroid
 					? { channelId: ANDROID_CHANNEL_ID }
 					: {}),
 			},
@@ -145,7 +149,7 @@ async function reconcileTaskDeadlineNotifications(): Promise<void> {
 }
 
 async function requestNotificationPermission(): Promise<boolean> {
-	if (Platform.OS === 'android') {
+	if (Platform.OS === 'android' && !isExpoGoAndroid) {
 		await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
 			name: 'Task deadline reminders',
 			importance: Notifications.AndroidImportance.DEFAULT,
