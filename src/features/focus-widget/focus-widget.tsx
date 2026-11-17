@@ -64,7 +64,10 @@ export function FocusWidget({
 		snapshot?.focusTaskDeadlineTime
 	);
 	const remainingTaskCount = snapshot?.remainingTaskCount ?? 0;
-	const compact = widgetWidth < 220 || widgetHeight < 150;
+	// Defensive: ensure valid dimensions, default to non-compact if invalid
+	const validWidth = widgetWidth > 0 ? widgetWidth : 300;
+	const validHeight = widgetHeight > 0 ? widgetHeight : 200;
+	const compact = validWidth < 220 || validHeight < 150;
 	const showDescription = Boolean(
 		focusDescription && (!compact || !deadlineLabel)
 	);
@@ -146,7 +149,6 @@ export function FocusWidget({
 				style={{
 					flex: 1,
 					flexDirection: 'column',
-					justifyContent: 'center',
 					marginTop: compact ? 6 : 10,
 					paddingHorizontal: compact ? 9 : 14,
 					paddingVertical: compact ? 6 : 12,
@@ -154,29 +156,96 @@ export function FocusWidget({
 					backgroundColor: COZY_BACKGROUND,
 				}}
 			>
-				{focusTitle ? (
-					<FlexWidget
-						style={{
-							flex: 1,
-							flexDirection: 'column',
-							justifyContent: 'center',
-						}}
-					>
-						<TextWidget
-							text={focusTitle}
+				<FlexWidget
+					style={{
+						flex: 1,
+						flexDirection: 'column',
+						justifyContent: 'center',
+					}}
+				>
+					{focusTitle ? (
+						<FlexWidget
 							style={{
-								fontFamily: 'Fredoka_700Bold',
-								fontSize: compact ? 16 : 20,
-								lineHeight: compact ? 19 : 24,
-								color: DEEP_BROWN,
+								flexDirection: 'column',
 							}}
-							allowFontScaling={false}
-							maxLines={2}
-							truncate="END"
-						/>
-						{showDescription ? (
+						>
 							<TextWidget
-								text={focusDescription ?? ''}
+								text={focusTitle}
+								style={{
+									fontFamily: 'Fredoka_700Bold',
+									fontSize: compact ? 16 : 20,
+									lineHeight: compact ? 19 : 24,
+									color: DEEP_BROWN,
+								}}
+								allowFontScaling={false}
+								maxLines={2}
+								truncate="END"
+							/>
+							{showDescription ? (
+								<TextWidget
+									text={focusDescription ?? ''}
+									style={{
+										marginTop: compact ? 2 : 5,
+										fontFamily: 'Fredoka_500Medium',
+										fontSize: compact ? 11 : 14,
+										lineHeight: compact ? 13 : 18,
+										color: MUTED_BROWN,
+									}}
+									allowFontScaling={false}
+									maxLines={compact ? 1 : 2}
+									truncate="END"
+								/>
+							) : null}
+							{showDeadline ? (
+								<FlexWidget
+									style={{
+										alignItems: 'flex-start',
+										marginTop: compact ? 3 : 7,
+									}}
+								>
+									<FlexWidget
+										style={{
+											paddingHorizontal: compact ? 7 : 9,
+											paddingVertical: compact ? 3 : 4,
+											borderRadius: 12,
+											backgroundColor: SOFT_GREEN,
+										}}
+									>
+										<TextWidget
+											text={deadlineLabel ?? ''}
+											style={{
+												fontFamily: 'Fredoka_500Medium',
+												fontSize: compact ? 10 : 12,
+												color: DEEP_GREEN,
+											}}
+											allowFontScaling={false}
+											maxLines={1}
+											truncate="END"
+										/>
+									</FlexWidget>
+								</FlexWidget>
+							) : null}
+						</FlexWidget>
+					) : (
+						<FlexWidget
+							style={{
+								flexDirection: 'column',
+							}}
+						>
+							<TextWidget
+								text="All done for now!"
+								style={{
+									fontFamily: 'Fredoka_700Bold',
+									fontSize: compact ? 16 : 20,
+									lineHeight: compact ? 19 : 24,
+									color: DEEP_BROWN,
+								}}
+								allowFontScaling={false}
+								maxLines={1}
+								truncate="END"
+							/>
+							<TextWidget
+								text="Take a little breather."
 								style={{
 									marginTop: compact ? 2 : 5,
 									fontFamily: 'Fredoka_500Medium',
@@ -185,75 +254,12 @@ export function FocusWidget({
 									color: MUTED_BROWN,
 								}}
 								allowFontScaling={false}
-								maxLines={compact ? 1 : 2}
+								maxLines={1}
 								truncate="END"
 							/>
-						) : null}
-						{showDeadline ? (
-							<FlexWidget
-								style={{
-									alignItems: 'flex-start',
-									marginTop: compact ? 3 : 7,
-								}}
-							>
-								<FlexWidget
-									style={{
-										paddingHorizontal: compact ? 7 : 9,
-										paddingVertical: compact ? 3 : 4,
-										borderRadius: 12,
-										backgroundColor: SOFT_GREEN,
-									}}
-								>
-									<TextWidget
-										text={deadlineLabel ?? ''}
-										style={{
-											fontFamily: 'Fredoka_500Medium',
-											fontSize: compact ? 10 : 12,
-											color: DEEP_GREEN,
-										}}
-										allowFontScaling={false}
-										maxLines={1}
-										truncate="END"
-									/>
-								</FlexWidget>
-							</FlexWidget>
-						) : null}
-					</FlexWidget>
-				) : (
-					<FlexWidget
-						style={{
-							flex: 1,
-							flexDirection: 'column',
-							justifyContent: 'center',
-						}}
-					>
-						<TextWidget
-							text="All done for now!"
-							style={{
-								fontFamily: 'Fredoka_700Bold',
-								fontSize: compact ? 16 : 20,
-								lineHeight: compact ? 19 : 24,
-								color: DEEP_BROWN,
-							}}
-							allowFontScaling={false}
-							maxLines={1}
-							truncate="END"
-						/>
-						<TextWidget
-							text="Take a little breather."
-							style={{
-								marginTop: compact ? 2 : 5,
-								fontFamily: 'Fredoka_500Medium',
-								fontSize: compact ? 11 : 14,
-								lineHeight: compact ? 13 : 18,
-								color: MUTED_BROWN,
-							}}
-							allowFontScaling={false}
-							maxLines={1}
-							truncate="END"
-						/>
-					</FlexWidget>
-				)}
+						</FlexWidget>
+					)}
+				</FlexWidget>
 			</FlexWidget>
 		</FlexWidget>
 	);
