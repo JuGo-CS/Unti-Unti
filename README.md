@@ -543,10 +543,10 @@ MIT License — see [LICENSE](LICENSE) file for details.
 
 ---
 
-> **Note**: This app is developed as part of CMSC 128 at University of the Philippines Visayas.  
+> **Note**: This app is developed as part of CMSC 128 [Software Engineering I] at University of the Philippines Visayas.  
 > Built with care by Kenneth Modejar
 
 ---
 
-_Last updated: November 2026_  
+_Last updated: November 17, 2026_  
 _Version: 1.0.0_
